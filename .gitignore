@@ -1,0 +1,26 @@
+# git ignore files
+
+# Ignore tilde files
+*~
+
+# Ignore compiled Python
+*.pyc
+
+# Ignore whatever is under the dist directory
+dist/*
+
+# Ingore the MANIFEST file.
+MANIFEST
+
+# Ingore build directory
+build
+
+# Ignore _ files and dirs in the doc directory
+doc/_*
+
+# Ignore anything in the tutorial output dir
+doc/examples/tutoroal/output/*
+
+# Ignore version file.
+nepidemix/version.py
+

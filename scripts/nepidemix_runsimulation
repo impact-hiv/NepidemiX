@@ -1,0 +1,73 @@
+#! python
+
+"""
+=============
+runsimulation
+=============
+
+Python script to run a NepidemiX simulation.
+
+Reads input from a configuration file given as first (and only 
+argument) and executes the simulation described there.
+
+"""
+
+__author__ = "Lukas Ahrenberg <lukas@ahrenberg.se>"
+
+__license__ = "Modified BSD License"
+
+import logging
+import sys
+import numpy
+import nepidemix as nepx
+
+if __name__ == "__main__":
+    # Init logging.
+    nepx.nepidemixlogging.setUpLogging()
+
+    logger = logging.getLogger(__name__)
+
+    if len(sys.argv) < 2:
+        emsg = "No config file given."
+        usage = "Usage: {0} <config file> [<repetitions>]".format(sys.argv[0])
+        logger.error(emsg + "\n" + usage)
+        sys.exit(emsg);
+
+    # Number of repetitions to make.
+    reps = 1
+
+    if len(sys.argv) >2:
+        reps = int(sys.argv[2])
+    logger.info("Doing {0} repetitions of simulation.".format(reps))
+    # Reading parameters from the config file
+    configFileName = sys.argv[1]
+    cfParser = nepx.utilities.NepidemiXConfigParser()
+    try:
+        with open(configFileName) as f:
+            cfParser.readfp(f)
+    except IOError:
+        err = "Could not open config file : '{0}'".format(configFileName)
+        logger.error(err)
+        sys.exit(err)
+
+    if cfParser.has_section(nepx.simulation.Simulation.CFG_SECTION_LOG):
+        # Make a dictionary out of the logging parameters section in order to send
+        # them as **kwargs.
+        d = dict(cfParser.items(nepx.simulation.Simulation.CFG_SECTION_LOG))
+    else:
+        d = {'level':'DEBUG'}
+    nepx.nepidemixlogging.configureLogging(**d)
+
+    for r in range(reps):
+        S = nepx.simulation.Simulation()
+        S.configure(cfParser)
+
+        S.execute()
+
+        S.saveData()
+        logger.info("Finished simulation {0}/{1}".format(r+1, reps))
+    logger.info("Done.")
+
+
+
+

@@ -1,0 +1,7 @@
+
+==================================
+NepidemiX installation instruction
+==================================
+
+See doc/download_and_installation.rst
+

@@ -1,0 +1,17 @@
+# Manifest include file
+
+# Include ourselves
+
+include MANIFEST.in
+
+# No tilde-files!
+global-exclude *~
+
+# Or pyc files
+global-exclude *.pyc
+
+# Or .git directories
+global-exclude .git
+
+# Exclude the output directory of the tutorials section
+exclude doc/examples/tutorial/output/*
