@@ -32,7 +32,7 @@ Lukas Ahrenberg <lukas@ahrenberg.se>
 Testing
 -------
 
-Sara Kok
+Sarah Kok
 
 Ali Nadaf
 
