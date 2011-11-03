@@ -103,13 +103,20 @@ class NetworkGenerator(object):
 #--------------------------------------------
 
 # Wrapper function for the networkx implementation of the BA algorithm.
+barabasi_albert_graph_networkx = NetworkGenerator(nx.barabasi_albert_graph, {"n":int, "m":int}).create
+# NOTE: old version. Kept for backward comp. will be removed in future. Use above instead.
 BA_networkx = NetworkGenerator(nx.barabasi_albert_graph, {"n":int, "m":int}).create
 
-# Wrapper function for the implementation of the Albert and Barabasi alg. in 
+
+# Wrapper function for the implementation of the Albert and Barabasi alg. in
 # Phys. Rev. Letters.
+albert_barabasi_prv_quick = NetworkGenerator(albert_barabasi_physrevlett_quick,
+                                             {"N":int, "m":int, "p":float, "q":float})\
+                                             .create                                             
+# NOTE: old version. Kept for backward comp. will be removed in future. Use above instead.
 AB_phys_rev_letters_quick = NetworkGenerator(albert_barabasi_physrevlett_quick,
-                                       {"N":int, "m":int, "p":float, "q":float})\
-                                       .create
+                                             {"N":int, "m":int, "p":float, "q":float})\
+                                             .create
 
 grid_2d_graph_networkx = NetworkGenerator(nx.grid_2d_graph,
                                           {'m':int, 'n':int}).create
@@ -117,13 +124,22 @@ grid_2d_graph_networkx = NetworkGenerator(nx.grid_2d_graph,
 fast_gnp_random_graph_networkx = NetworkGenerator(nx.fast_gnp_random_graph,
                                                   {'n':int, 'p':float}).create
 
-load_network = NetworkGenerator(nwxutils.loadNetwork, {'f':str}).create
+load_network = NetworkGenerator(nwxutils.loadNetwork, {'file':str}).create
 
+connected_watts_strogatz_graph_networkx = NetworkGenerator(nx.connected_watts_strogatz_graph,
+                                                  {'n':int, 'k':int, 'p':float}).create
+# NOTE: old version. Kept for backward comp. will be removed in future. Use above instead.
 connected_watts_strogatz_graph = NetworkGenerator(nx.connected_watts_strogatz_graph,
                                                   {'n':int, 'k':int, 'p':float}).create
 
+powerlaw_cluster_graph_networkx = NetworkGenerator(nx.powerlaw_cluster_graph,
+                                          {'n':int, 'm':int, 'p':float}).create
+# NOTE: old version. Kept for backward comp. will be removed in future. Use above instead.
 Holme_and_Kim_powerlaw = NetworkGenerator(nx.powerlaw_cluster_graph,
                                           {'n':int, 'm':int, 'p':float}).create
 
+powerlaw_degree_sequence_networkx = NetworkGenerator(powerlaw_degree_sequence,
+                                            {"n":int, "a":float}).create
+# NOTE: old version. Kept for backward comp. will be removed in future. Use above instead.
 powerlaw_degree_sequence = NetworkGenerator(powerlaw_degree_sequence,
                                             {"n":int, "a":float}).create
