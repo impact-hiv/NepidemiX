@@ -15,7 +15,6 @@ Contents:
    download_and_installation
    documentation
    tutorial
-   for_developers
    api
 
 Indices and tables

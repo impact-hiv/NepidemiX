@@ -3,18 +3,19 @@
 About NepidemiX
 ===============
 
-NeipdemiX is a software package for running complex epidemiological
-simulations on networks. It was developed by members of the IMPACT-HIV
-group and is published under an open source license.
+NeipdemiX is a software package for simulating complex processes on networks. It was developed by members of the `IMPACT-HIV <http://impact-hiv.irmacs.sfu.ca/home/>`_
+group and is published under the modified BSD license.
 
-HIV spread by contact and with the insight that the structure of a
-persons behavioral network may influence the risk potential. Based on
+Background
+----------
+
+HIV spread by contact and so the structure and mechanisms of a persons behavioral network may influence the risk potential. Based on
 this hypothesis it becomes important to investigate the role of risk
 group network structure in a population, not only by analysis and
 studies, but also by powerful computer simulations comparing disease
 dynamics on many types of networks.
 This need has been the driving force behind the development of
-NepidemiX. While many network analysis tools exist epidemic modelling
+NepidemiX. While many network analysis tools exist epidemic modeling
 requires general disease processes to be put on the network.
 
 NepidemiX allows for just that with a highly configurable simulation

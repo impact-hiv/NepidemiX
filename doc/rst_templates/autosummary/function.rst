@@ -1,3 +1,5 @@
+.. _NepidemiX-API-{{ objname }}:
+
 {{ name }}
 {{ underline }}
 
