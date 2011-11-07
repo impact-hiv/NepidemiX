@@ -2,10 +2,8 @@
 NetworkX utilities
 ==================
 
-NetworkX specific utilities.
+A small set of utilities extending and operating on `NetworkX <http://networkx.lanl.gov/>`_ graphs.
 
-Provides utilities used in NepidemiX to work on NetworkX
-[http://networkx.lanl.gov/]
 
 """
 

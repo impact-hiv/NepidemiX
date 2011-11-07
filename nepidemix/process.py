@@ -389,13 +389,19 @@ class Process(object):
 class ExplicitStateProcess(Process):
     """
     This class is a specialization of `Process` that assumes that all
-    states are explicitly stored and given when the class is initialized.
+    states are explicitly stored  (as opposed as derived from a set of 
+    attributes) and given when the class is initialized.
+   
+    The nodes and edges will all have attributes named after the value of 
+    ExplicitStateProcess.STATE_ATTR_NAME and the rule methods are supposed 
+    to update this filed with the new state.
     
     Used for convenience to collect a number of similar methods for all
     subclasses.
 
     A deriving class need only to overload the __init__ and/or any of the
     *UpdateRule methods that will be used.
+
 
     See Also
     --------
@@ -680,12 +686,15 @@ class AttributeStateProcess(Process):
     Methods that take state names as parameters do this as strings formatted
     as python dictionaries (thus describing the attribute dictionary).
     
+    When initialized this class require a declaration of all possible 
+    attribute names, and all possible values those attributes may be set to.
 
     Used for convenience to collect a number of similar methods for all
     subclasses.
 
     A deriving class need only to overload the __init__ and/or any of the
     *UpdateRule methods that will be used.
+
 
     See Also
     --------
