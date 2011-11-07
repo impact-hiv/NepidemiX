@@ -138,8 +138,5 @@ powerlaw_cluster_graph_networkx = NetworkGenerator(nx.powerlaw_cluster_graph,
 Holme_and_Kim_powerlaw = NetworkGenerator(nx.powerlaw_cluster_graph,
                                           {'n':int, 'm':int, 'p':float}).create
 
-powerlaw_degree_sequence_networkx = NetworkGenerator(powerlaw_degree_sequence,
-                                            {"n":int, "a":float}).create
-# NOTE: old version. Kept for backward comp. will be removed in future. Use above instead.
 powerlaw_degree_sequence = NetworkGenerator(powerlaw_degree_sequence,
                                             {"n":int, "a":float}).create
