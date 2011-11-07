@@ -2,6 +2,9 @@
 NetworkX utility functions
 ==========================
 
+A small set of utilities extending and operating on NetworkX graphs.
+
+
 """
 
 __author__ = "Lukas Ahrenberg <lukas@ahrenberg.se>"
@@ -306,7 +309,7 @@ def attributeValueDeal(iterator, attributeValues, graphSize, dealExact = False):
             else:
                 break
 
-def loadNetwork(f):
+def loadNetwork(file):
     """
     Utility function: Go through a number of file load methods and try to read 
     a graph.
@@ -316,7 +319,7 @@ def loadNetwork(f):
     Parameters
     ----------
     
-    f : str
+    file : str
        Name of file as string.
 
     Notes
@@ -336,7 +339,7 @@ def loadNetwork(f):
     # gpickle
     if G == None and (not iofail):
         try:
-            G = nx.readwrite.read_gpickle(f)
+            G = nx.readwrite.read_gpickle(file)
             logger.info("Read gpickle file '{0}'".format(f))
         except IOError:
             logger.error("Could not read file '{0}'".format(f))
@@ -347,7 +350,7 @@ def loadNetwork(f):
     # GraphML
     if G == None and (not iofail):
         try:
-            G = nx.readwrite.read_graphml(f)
+            G = nx.readwrite.read_graphml(file)
             logger.info("Read GraphML file '{0}'".format(f))
         except IOError:
             logger.error("Could not read file '{0}'".format(f))
