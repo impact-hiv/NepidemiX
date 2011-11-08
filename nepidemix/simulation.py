@@ -76,12 +76,15 @@ class Simulation(object):
 
        S.saveData()
     
+
     Configuration files are written in an ini-like language with sections and
     <option> = <value> pairs in each. The Section and Option names are given by
     the CFG-prefixed attributes of the Simulation class.
 
+    The following table contains explanations of all valid ini-file configuration sections.
+
     +-----------------------+------------------------------------------------+
-    |                         Configuration sections                         |
+    |                    List of configuration sections                      |
     +-----------------------+------------------------------------------------+
     |        Section        |                  Explanation                   |
     +=======================+================================================+
@@ -147,15 +150,14 @@ class Simulation(object):
     |                       | specific settings.                             |
     +-----------------------+------------------------------------------------+
     | Logging               | Contains options on software log output for    |
-    |                       | nepidemix. Option:                          |
-    |                       |                                                |
-    |                       |    level                                       |
-    |                       |       Optional (default value DEBUG).          |
-    |                       |       Must be one of DEBUG/INFO/WARN/SILENT.   |
+    |                       | nepidemix.                                     |
     +-----------------------+------------------------------------------------+
     
 
 
+    Configuration options
+
+    Below are tables listing available options for sections having them.
 
 
     +-----------------------+------------------------------------------------+
@@ -195,7 +197,7 @@ class Simulation(object):
     |                       | simulation if the network should be            |
     |                       | initialized by the current process or not.     |
     |                       | Note that not initializing the network may     |
-    |                       | lead to errors or strange behavior. Only      |
+    |                       | lead to errors or strange behavior. Only       |
     |                       | switch off if network is loaded from disk and  |
     |                       | you don't want it to be re-initialized with    |
     |                       | new state (thus keeping the states), or if the |
@@ -240,10 +242,10 @@ class Simulation(object):
     |                            | If this is true/yes/on, the network nod   |
     |                            | states will be sampled and saved as a csv |
     |                            | file.                                     |
-    |                            | Note: only valid if the current process    |
+    |                            | Note: only valid if the current process   |
     |                            | support node updates. If not, nothing     |
     |                            | will be saved.                            |
-    +--------------------------+---------------------------------------------+
+    +----------------------------+-------------------------------------------+
     | save_node_state_interval   | Optional (default value 1). Sample nodes  |
     |                            | every <value> iterations. Value should be |
     |                            | an integer >= 1. Note, initial and final  |
@@ -254,6 +256,16 @@ class Simulation(object):
     |                            | (on/off, true/false, yes/no, 1/0).        |
     |                            | Denotes if the saved network files should |
     |                            | be bz2 compressed.                        |
+    +----------------------------+-------------------------------------------+
+
+
+    +----------------------------+-------------------------------------------+
+    |                        Logging section options                         |
+    +----------------------------+-------------------------------------------+
+    |        Option key          |                Explanation                |
+    +============================+===========================================+
+    | level                      | Optional (default value DEBUG).           |
+    |                            | Must be one of DEBUG/INFO/WARN/SILENT.    |
     +----------------------------+-------------------------------------------+
 
     """

@@ -55,6 +55,54 @@ class ClusterSimulation(object):
     compatible configurations for each parameter combination as well as scripts
     to add each simulation to the cluster PBS queue. 
 
+    In adition to the normal `Simulation` configuration sections and options 
+    the following cluster-specific are added:
+
+    +------------------+-------------------------------------------------------+
+    | Cluster specific sections                                                |
+    +------------------+-------------------------------------------------------+
+    | Section          | Explanation                                           |
+    +==================+=======================================================+
+    | ClusterSimConfig | Contains information specific to the cluster project. |
+    +------------------+-------------------------------------------------------+
+    | PBS 	       | This sections contain information related to writing  |
+    |                  | the pbs queue scripts.                                |
+    +------------------+-------------------------------------------------------+
+    
+    And each section has the following options:
+    
+    +--------------+-----------------------------------------------------------+
+    | ClusterSimConfig options                                                 |
+    +--------------+-----------------------------------------------------------+
+    |Option 	   | Explanation                                               |
+    +==============+===========================================================+
+    | root_dir 	   | Optional (default value ./). Root directory.              |
+    |              | A new directory named after the project will be created   |
+    |              | here where all output will be written.                    |
+    +--------------+-----------------------------------------------------------+
+    | project_name | This is the name of the project. A project directory with |
+    |              | this name will be created in the root dir.                |
+    +--------------+-----------------------------------------------------------+
+    | repetitions  | Optional (default value 1). The number of repetitions     |
+    |              | that will be executed for each single parameter           |
+    |              | combination.                                              |
+    +--------------+-----------------------------------------------------------+
+
+
+    +--------------+-----------------------------------------------------------+
+    | PBS options                                                              |
+    +--------------+-----------------------------------------------------------+
+    |Option 	   | Explanation                                               |
+    +==============+===========================================================+
+    | user_email   | Your email address.                                       |
+    +--------------+-----------------------------------------------------------+
+    | queue_name   | Name of the run queue.                                    |
+    +--------------+-----------------------------------------------------------+
+    | exec_command | Execution command. The command has one required parameter |
+    |              | (the ini file) and one optional (but recommended) being   |
+    |              | the number of repetitions.                                |
+    +--------------+-----------------------------------------------------------+
+
     """
 
     CFG_SECTION_CLUSTER = 'ClusterSimConfig'

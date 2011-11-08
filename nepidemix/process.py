@@ -276,7 +276,7 @@ class Process(object):
            The network to initialize.
 
         args,kwargs : special
-           Aditional parameters may be passed using **kwargs by the calling
+           Additional parameters may be passed using **kwargs by the calling
            simulation object if they are declared in the configuration.
            This mechanism should be used to build general initialization methods.
 
@@ -304,7 +304,7 @@ class Process(object):
            The network to initialize.
 
         args,kwargs : special
-           Aditional parameters may be passed using **kwargs by the calling
+           Additional parameters may be passed using **kwargs by the calling
            simulation object if they are declared in the configuration.
            This mechanism should be used to build general initialization methods.
 
@@ -431,10 +431,10 @@ class ExplicitStateProcess(Process):
         ----------
         
         nodeStates : set 
-           set containing all valid node state indentifies
+           set containing all valid node state identifiers
 
         edgeStates : set 
-           set containing all valid edge state indentifies
+           set containing all valid edge state identifies
            
         runEdgeUpdate : bool
            See Process
@@ -995,6 +995,98 @@ class ScriptedProcess(AttributeStateProcess):
     overloading and implementing python classes. The state update rules are 
     written in an ini/python like script outlined below.
 
+    None of the configuration sections in the ScriptedProcess ini file have 
+    fixed options. Rather the option names and values are taken on specific
+    forms to declare states and rules. This is explained in the table below 
+    outlining the different sections and how to declare options in each:
+
+    +-----------------+--------------------------------------------------------+
+    | ScriptedProcess configuration sections                                   |
+    +-----------------+--------------------------------------------------------+
+    | Section         | Explanation                                            |
+    +=================+========================================================+
+    | NodeAttributes  | Declaration of node attributes.                        |
+    |                 | Option names will be taken as attribute names, and the |
+    |                 | value (a single value, or a comma-separated list) is a |
+    |                 | list of all possible values this attribute can take.   |
+    +-----------------+--------------------------------------------------------+
+    | EdgeAttributes  | Declaration of edge attributes.                        |
+    |                 | Option names will be taken as attribute names, and the |
+    |                 | value (a single value, or a comma-separated list) is a |
+    |                 | list of all possible values this attribute can take.   |
+    +-----------------+--------------------------------------------------------+
+    | MeanFieldStates | Declaration of mean field states.                      |
+    |                 | Declaration of mean fields. This serves two purposes.  |
+    |                 | First it allows the node and edge rules to access the  |
+    |                 | fraction of nodes/edges in this state using the ``MF`` |
+    |                 | operator (see below). Second, the number of            |
+    |                 | nodes/edges in each mean field state will be given to  |
+    |                 | simulation to be tracked over time. This field is not  |
+    |                 | a standard ini-style option-value declaration. Rather  |
+    |                 | only options (without the '=' sign) is allowed here.   |
+    |                 | Each option is taken to be a declaration of a mean     |
+    |                 | field state, and should be on dictionary form. I.e.    |
+    |                 | ``{attribute1:key1, attribute2:key2, ...}``. Partial   |
+    |                 | states are allowed here. Partial, meaning a dictionary |
+    |                 | that either only specifies some of the states declared |
+    |                 | in the NodeAttributes or EdgeAttributes sections, or   |
+    |                 | which define their values on a form                    |
+    |                 | ``{attribute_n:(key1, key2,..., key_m), ...}``.        |
+    |                 | That is in the latter case, giving a tuple of          |
+    |                 | alternative values for one or more attributes.         |
+    |                 | In each of these cases a separate mean field state     |
+    |                 | is created for every possible state being part of the  |
+    |                 | state-sub-space defined by the partial state, and      |
+    |                 | a special mean field state is created for the sub-     |
+    |                 | space defined. It is also possible to use ``{}`` (the  |
+    |                 | empty dictionary) to match every individual state,     |
+    |                 | and the total mean field (constant).                   |
+    +-----------------+--------------------------------------------------------+
+    | NodeRules       | List of node transition rules.                         |
+    |                 | Each option-value pair is considered a node update     |
+    |                 | rule. The option is a string defining which node       |
+    |                 | attribute set should match the rule, and if the rule   |
+    |                 | is followed which attribute updates should be          |
+    |                 | performed to the dictionary (thereby sending it to     |
+    |                 | another state). The value is an expression computing   |
+    |                 | the unit-time probability of following the rule.       |
+    |                 | First let's give the option form. This is              |
+    |                 | ``{attribute1:key1, attribute2:key2, ...} ->           |
+    |                 | {attribute_k:key_k,...}``.                             |
+    |                 | On the left side of the ``->`` sign is a full or       |
+    |                 | partial state as a node attribute dictionary (see      |
+    |                 | the mean field notes above) and will be matched to the |
+    |                 | node state. If it is a partial state, rules for all    |
+    |                 | possible states will be constructed. On the right side |
+    |                 | of the ``->`` sign is the updates that should be       |
+    |                 | performed to the dictionary in case the rule is        |
+    |                 | followed through. Typically this is a change to a      |
+    |                 | single attribute, but it is also possible to change    |
+    |                 | multiple attributes. The option value is an expression |
+    |                 | that should compute a probability in unit time. This   |
+    |                 | is the probability that the rule is followed through   |
+    |                 | and the update to the node dictionary is made. Any     |
+    |                 | variable name used in this expression is assumed to be |
+    |                 | a process parameter, and will have to be set in the    |
+    |                 | simulation configuration. For variable names anything  |
+    |                 | that is not a python specific names, or either `MF` or |
+    |                 | ``NN``. The names ``MF`` and ``NN`` are specific       |
+    |                 | functions that can  be used in the expression.         |
+    |                 | ``NN({attribute1:key1, attribute2:key2, ...})``        |
+    |                 | yields the number of nearest neighbors in the given    |
+    |                 | state (or partial state).                              |
+    |                 | There is also a special version that takes a second    |
+    |                 | argument which should be a full or partial edge state. |
+    |                 | The counting of nearest neighbors is then only         |
+    |                 | performed on edges matching this edge state.           |
+    |                 | ``MF({attribute1:key1, attribute2:key2, ...})``        |
+    |                 | gives the mean field (fraction of nodes/edges) in the  |
+    |                 | given state. Note that for ``MF`` only declared mean   |
+    |                 | field states are valid. See the tutorial for examples. |
+    |                 | Finally, several rules matching the same states can    |
+    |                 | be written and they will be evaluated in the order     |
+    |                 | declared.                                              |
+    +-----------------+--------------------------------------------------------+
 
     Configuration File Sections
     ---------------------------
@@ -1017,6 +1109,7 @@ class ScriptedProcess(AttributeStateProcess):
     CFG_SECTION_edge_attribs : string
        'EdgeAttributes'
 
+       
 
     Examples
     --------
