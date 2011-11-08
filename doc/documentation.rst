@@ -7,14 +7,14 @@ Documentation
 Introduction 
 ==============
 
-There are two ways to use NepidemiX: through a configurable command line program or by writing your won Python programs accesin the NepidemiX classes. 
+There are two ways to use NepidemiX: through a configurable command line program or by writing your won Python programs accessing the NepidemiX classes. 
 Simulations and processes can be 
 specified in a simple configuration file and can be extended using Python or both.
 
 If you are new to NepidemiX it is recommended that you start with the 
-:ref:`tutorial`. which shows both how to script simulations using config files and howt to write them as Python classes.
+:ref:`tutorial`. which shows both how to script simulations using config files and how to write them as Python classes.
 
-This page is intended as a very brief documentation outlining some of the features of the NepidemiX package, higlighting some of the features introduced by the tutorial. It lists the different configuration and scripting options, and link to the documentation for the main classes used for programming. A full API documentation is best accessed through the Pyhthon docstrings as shown in the :ref:`tutorial`.
+This page is intended as a very brief documentation outlining some of the features of the NepidemiX package, highlighting some of the features introduced by the tutorial. It lists the different configuration and scripting options, and link to the documentation for the main classes used for programming. A full API documentation is best accessed through the Python docstrings as shown in the :ref:`tutorial`.
 
 
 
@@ -26,13 +26,15 @@ At the core of NepidemiX is the :ref:`Simulation <NepidemiX-API-Simulation>` cla
 
 As nepidemix was intended to mainly run simulations and these can be rather complex as well as dependent on the type of process and network used, the Simulation class is initialized using a configuration object. Currently this is a :ref:`Nepidemix-API-NepidemixConfigParser` object, derived from the python2 standard class ConfigParser.RawConfigParser, but this may come to change in future versions. The configuration will among other things tell the simulation class what type of process to use and what kind of network generating function. Simulation will thereafter create both these objects.
 
+For examples on how to configure and run a simulation see the :ref:`tutorial`. For a full list of configuration options see the API documentation for the :ref:`Simulation <NepidemiX-API-Simulation>` class.
+
 API-reference: :ref:`API_Simulations`
 
 
 Network generation 
 -------------------
 
-There is no dedicated network class in networkmodule, instead it relies on the very well developed and efficient `NetworkX <http://networkx.lanl.gov/>`_ Graph. 
+There is no dedicated network class in nepidemix, instead it relies on the very well developed and efficient `NetworkX <http://networkx.lanl.gov/>`_ Graph. 
 In order to tell Simulation what graph to generate the configuration option **network_func** is set. However, this can not be set directly to a NetworkX Graph generating function. Instead it must be set to a so called wrapper that takes the options destined for the function (as given in the section **NetworkParameters**) and cast them to the appropriate types. This is due to the fact that there is no native way of determine either type from a raw ini file, nor to query a python function for what types it requires for its parameters.
 
 The current solution is not very elegant, a future update of the software will include type specification possibilities in the ini file instead. Currently, however, wrappers are defined in the nepidemix file networkgenerationwrappers.py . One example is::
@@ -98,7 +100,7 @@ Hopefully you will not have to; wrapper for common functions exist already as gi
 The Process class 
 ==================
 
-A process is a set of operations executing on a network each iteration of the simulation. The Simulation class will call methods in a process object representing different stages such as node and edge state updates, network state initialization, et c. Processes are subclasses of the class :ref:`networkmodule.process.Process <NepidemiX-API-Process>`. This class defines the interface for all processes, and by overloading the methods of this class different specific processes functionality is created. networkmodule.process also contain a few ready defined processes such as the generic ScriptedProcess.
+A process is a set of operations executing on a network each iteration of the simulation. The Simulation class will call methods in a process object representing different stages such as node and edge state updates, network state initialization, et c. Processes are subclasses of the class :ref:`nepidemix.process.Process <NepidemiX-API-Process>`. This class defines the interface for all processes, and by overloading the methods of this class different specific processes functionality is created.
 
 Processes operate at network/edge level as well as network level. The node and edge updates look at one entity at a time, but have access to read from the full network. The network update is called for the entire network and can operate on that level. As most processes we are interested in are on the form `if node/edge state is x then with some probability move it into state y`. Such rules will only write to a single entity (node/edge) at a time and can be fully implemented using local (per-entity) update rules only. The whole network update can later be used if other data/updates are needed, for instance mean field or topology changes.
 
@@ -108,40 +110,10 @@ For this reason there are two main subclasses of :ref:`NepidemiX-API-Process`: :
 
 When talking about processes derived from :ref:`NepidemiX-API-AttributeStateProcess` they all have states in the form of a dictionary (you can think of this as a vector, only with named elements instead of ordered). In this documentation, and in code, we denote the states by a dictionary in python form. E.g. *{key1:attribute1, key2:attribute2, ...}*.
 
+The easiest way of building a process is probably to script it using :ref:`NepidemiX-API-ScriptedProcess` to build your process. This subclass of  :ref:`NepidemiX-API-AttributeStateProcess` will take a rule definition file as input, and may be use for a large class of processes without too much overhead.
 
-For practical examples see :ref:`tutorial`.
+For practical examples on how to specify processes see the :ref:`tutorial`.
 
-API-refrence: :ref:`API_Processes`
-
-The following sections and options are available to a stand alone simulation.
-
+API-reference: :ref:`API_Processes`
 
 
-Cluster options
-===============
-
-
-When processing a configuration through the cluster module all stand alone option values (listed above) are allowed to be expressed as lists or ranges.
-The format of a list is comma-separated
-**<option> = <value 1>, <value 2>, ..., <value n>**
-while a range must have the following form **<option> = <start> : <step> : <end>** and will produce a list from <start> (inclusive) to <end> (exclusive) with step size <step>.
-
-Examples::
-
-   # This range will produce the value 100, 150, 200 for n.
-   n = 100:50:200
-   # This is a list of different values of p.
-   p = 0.1, 0.24, 0.51, 0.79
-
-
-In addition the following sections and options are available for configuring the cluster module.
-
-
-
-ScriptedProcess options 
-------------------------
-
-If you use the **ScriptedProcess** class it will take a rule definition file as input. This is an ini-type file with the following sections and options.
-
-
-For examples on how to use ScriptedProcess see [[NepidemiX (Tutorial)]].
