@@ -37,7 +37,7 @@ The files are pure text files (but usually named with the ending .ini instead of
 The command line 
 ~~~~~~~~~~~~~~~~~
 
-The NepidemiX scripts are currently terminal programs. That means that they don't have any graphical user interface, and that you will have to execute them from the command line. I will assume that you know how to open a terminal and how to change directories.
+The NepidemiX scripts are terminal programs. That means that they don't have any graphical user interface, and that you will have to execute them from the command line. I will assume that you know how to open a terminal and how to change directories.
 
 
 Relative and absolute paths 
@@ -111,10 +111,10 @@ Now, we can start running some simulations!
 Running our first simulation
 ============================
 
-While the nepidemix module can be loaded in an interactive python shell (like all other python) module it was primarlily designed to be accessed by applications. To use it interactively would mean that we need to manually load and create an appropriate configuration every time. This is cubersome, and better scripted. We will use the python program **runsimulation.py** for this. In its simplest form the script require one argument: a configuration file. The next step is to write this file.
+While the nepidemix module can be loaded in an interactive python shell (like all other python) module it was primarlily designed to be accessed by applications. To use it interactively would mean that we need to manually load and create an appropriate configuration every time. This is cubersome, and better scripted. We will use the python program **nepidemix_runsimulation** for this. In its simplest form the script require one argument: a configuration file. The next step is to write this file.
 
 
-Configuring an SI(S) simulation
+Configuring an SIS simulation
 -------------------------------
 
 For our first simulation let's use a simple, but standard model: the SIS process.
@@ -141,7 +141,7 @@ Later I'll show you how to specify processes, but for now let's use a pre-made S
    {status:S} -> {status:I} = NN({status:I}) * beta
    {status:I} -> {status:S} = delta
 
-You can probably figure out what most of this definition is by just looking at it, but if there's anything that seems unclear, don't worry, we'll go through process specifications in a minute.
+You can probably figure out what most of this definition is by just looking at it, but if there's anything that seems unclear, don't worry, we'll go through process specifications later in :ref:`ref-process-def`.
 
 First, however, I'll show you how to run the SIS process on a network by writing a simulation configuration file.
 
@@ -165,13 +165,13 @@ We start with the following general piece of simulation information::
    process_class = ScriptedProcess
       
    # This is the name of the network generation function.
-   network_func = BA_networkx
+   network_func = barabasi_albert_graph_networkx
    
 The comments behind the # symbols should be fairly self-explanatory. The section title is written in square brackets; the options are to the left of the = signs and whatever is on the right is the value of said option. 
 
 Note the option **process_class** is set to the value *ScriptedProcess*. The name *ScriptedProcess* is a class defined within the nepidemix module. The value of **process_class** determine which process will run on the network. There are no finished processes defined within nepidemix. One can specify processes by either ini scripting or by writing a Python class. Later in this tutorial we'll se how to define new Processes. *ScriptedProcess* just means that the process will be provided as a configuration file.
 
-The network generation algorithm function is set using the option **network_func**. Set it to the value *BA_networkx* which is the networkx implementation of the BA preferential attachment algorithm. There are a few different network generation functions implemented already, for example: *grid_2d_graph_networkx* -- create a regular grid; *fast_gnp_random_graph_networkx* -- ER random graph; *load_network* -- load a network from file;  *connected_watts_strogatz_graph* -- WS graph.
+The network generation algorithm function is set using the option **network_func**. Set it to the value *barabasi_albert_graph_networkx* which is the networkx implementation of the BA preferential attachment algorithm. There are a few different network generation functions implemented already, for example: *grid_2d_graph_networkx* -- create a regular grid; *fast_gnp_random_graph_networkx* -- Erdős-Rényi random graph; *load_network* -- load a network from file;  *connected_watts_strogatz_graph_networkx* -- Watts-Strogatz graph.
 
 
 Network parameters section
@@ -280,7 +280,7 @@ Finally, we must define what data should be saved, where it should be saved, and
 I have kept the rather extensive comments in this part of the configuration as they can good for remembering what is going on. The options should be quite self-explanatory from the comments, however I want to point out a few things. First the value of the option **base_name** will be the prefix of all saved files. Second, the value of **output_dir** should be an existing directory. All files will be saved here. Note also that the value in this particular example is a relative path, *../output/*. You can use the absolute path to your output directory if you like, but as this tutorial should be general I will use a relative path here. Using a relative path however does mean that when we run the simulation it will try to save the data in a directory called output located one level up *from where the simulation is executed* - we must therefore take some caution to where we will run our simulations. See below.
 
 
-Running runsimulation.py  with our configuration 
+Running nepidemix_runsimulation  with our configuration 
 -------------------------------------------------
 
 You should now have the file **SIS_example.ini** all filled in and saved in your **conf** directory. We are ready to execute our simulation! Exciting!
@@ -293,7 +293,7 @@ You should now have the file **SIS_example.ini** all filled in and saved in your
 
 Anyway, after pressing return the simulation will print a lot of things and hopefully run to an end. Depending on your settings and computer you will now have time to blink, wash the dishes, or go for a run. (With the above settings I had just time to brush half of my teeth. Not to self: double number of iterations for next version of the tutorial.)
 
-When the simulation is done and you return to screen have a look in your output directory. If all have gone well you will find four files there: test_SIS_<date>_0000000000.gpickle.bz2, test_SIS_<date>_0000000500.gpickle.bz2, test_SIS_<date>_2011.ini, test_SIS_<date>_node_state_count.csv . Where <date> is the date and time of execution. So what are these files? 
+When the simulation is done and you return to screen have a look in your output directory. If all have gone well you will find four files there: test_SIS_<date>_0000000000.gpickle.bz2, test_SIS_<date>_0000000500.gpickle.bz2, test_SIS_<date>_2011.ini, test_SIS_<date>_state_count.csv . Where <date> is the date and time of execution. So what are these files? 
 
 * The **.gpickle.bz2** files are the complete network structure and node status saved in a networkx python format (and packed with bzip). The number is the iteration, so that 0 is the initial network and 500 is the network after the last iteration. These files can be loaded to graphs by networkx using the networkx.readwrite.read_pickle() function. The reason you have these files is that you set **save_network** to *yes*, and **save_network_interval** to *0*.
 
@@ -301,10 +301,22 @@ When the simulation is done and you return to screen have a look in your output 
 
 * The **_node_state_count.csv** file is a comma separated value file containing the state count on the network at time intervals. The first row is the table headers, and the first column time, one column per (mean field) state follows. You can open it up for example using your favourite spread sheet application.
 
-Take some time now to play around with some of the parameters, for instance increase the number of iterations, network size, and try some different values of beta and delta. Plot the data in the csv file.
+In fact, go ahead and do what is suggested in the last bullet point above: look at the csv file. Either in a text editor or by importing in in a spread sheet application. You'll see three column headings *Time*, *frozenset([('status', 'S')])*, and *frozenset([('status', 'I')])*. The *Time* column is the current iteration times the time step (**dt**). The other two columns has quite funny names, but if you ignore the `frozenset` text and the brackets, it is quite easy to imagine that this is the nodes which has status *S* and *I* respectively. This is also the case. The two columns contain the number of nodes in each state. As you can see there are 950 *S* nodes to start with and only 50 infected.
+
+To visualize how the numbers change over time you can easily make a scatter plot with *Time* on the horizontal axis and the node counts on the vertical.
+It should look something like this:
+
+.. image:: figures/SIS_plot1.png
+
+As you can see the Susceptible population is in decline while the Infected is rising. But is this how it will end? Clearly the simulation has not been run enough time steps. Go ahead and increase it! How long do you have to run it before you are reasonably sure to have reached a steady state? 
+
+You probably know this, but as a side note: in reality, running a single simulation will not be enough as they are stochastic. You will need to run a lot of them and average the results.
+
+Now, take some time now to play around with some of the parameters, for instance increase the number of iterations, network size, and try some different values of beta and delta. Plot the data in the csv file.
 
 When you are done we'll define an SIR process.
 
+.. _ref-process-def:
 
 Using ScriptedProcess to write node-state-processes
 ===================================================
@@ -317,7 +329,7 @@ Use this approach if your process
 
 * Has node state transition probabilities that can be described as a function of a rate and / or the number of neighbours in the variour network states
 
-* Require only limited edge state functionality, or mean field transiotion. (These things will be supported in a future release.)
+* Require only limited edge state functionality, or mean field transiotion. (These things will be supported in a future releases.)
 
 
 The SIR model 
@@ -333,17 +345,18 @@ We will let the rate of infection be :math:`\beta`, and the recovery rate be :ma
 
 * There is no way to leave state **R**.
 
-nepidemix has the functionality to turn these type of transition rules into the python code for a process. All that is needed is a specifically written configuration file. Thus, open a new file in your editor and copy the following into it::
+NepidemiX has the functionality to turn these type of transition rules into the python code for a process. All that is needed is a specifically written configuration file. Let's start! Open a new file called **SIR_process_def.ini** in your editor and copy the following into it::
 
 
    [NodeAttributes]
    status = S,I,R
 
-The section **NodeAttributes** is used to declare the name and possible values of all node attributes. Thus the above line lets the program know that there is one attribute called **status** and that it can have one
-of the three values **S**, **I**, **R**. You could have chosen other names if you had liked. Note that nodes may have many different attributes (for instance we may have one called **gender**, and another called **age**) they would all be declared on separate rows in the NodeAttributes section.
-In short this lets you declare the names and symbols used to define an attribute.
+The section **NodeAttributes** is used to declare the name and possible values of all node attributes. The above line lets the program know that there is one attribute called **status** and that it can have one
+of the three values **S**, **I**, **R**. You could have chosen other names if you had liked. Note that nodes may have many different attributes (for instance we may have one called **gender**, and another called **age**) they would all be declared on separate rows in the NodeAttributes section followed by their possible values. Note that nepidemix require a finite number of possible values for an attribute, meaning that each one has to be declared. For the example **age** that could have quite many different values the range short hand <start>:<step>:<end> would have been the easiest choice, e.g ``age = 0:1:150`` for an age between 0 and 149.
 
-Next we need to define the mean field states. We would not have to declare any states here, but while the SIR model may not have any transition rules dependent on the mean fields, the simulation software will report how declared mean field states progress over time. Thus by declaring all three states we make sure that we will have data saved for them.
+In short the **NodeAttributes** section lets you declare the names and symbols used to define an attribute. But now back to our SIR process.
+
+Next we need to define the mean field states. We would not have to declare any states here, as the SIR model do not have any transition rules dependent on the mean fields, however the simulation software will log how many nodes are in the declared mean field states progress over time. This is what you see in the 'frozenset'-columns in the resulting csv file. There will be one column for each declared state. Thus by declaring all three states we make sure that we will have data saved for them.
 
 Write the following section in your configuration::
 
@@ -352,7 +365,7 @@ Write the following section in your configuration::
    {status:I}
    {status:R}
 
-As you can see, the mean field states is not an assignment, but just a list. You write the state between curly brackets on the form **{ <attribute1>:<value1>, <attribute2>:<value2> }**. The state can be full or partial (as described in :ref:`ref-lingo`). If it is a partial state the simulation will automatically insert all possible full states matched by this state. To match all possible states use the most general partial state: **{}**.
+As you can see, the mean field states is not an assignment, but just a list. You write the state between curly brackets on the form **{ <attribute1>:<value1>, <attribute2>:<value2> }**. The state can be full or partial (as described in :ref:`ref-lingo`). If it is a partial state the simulation will automatically insert all possible full states matched by this state. To match all possible states use the most general partial state: **{}**. (If you, like you can insert that state as well in the definition. Do you know what you would get?) 
 
 Next up is declaration of the actual rules; add the following to the file::
 
@@ -370,9 +383,10 @@ Worth noting in the above configuration is that the rules must have a specific f
    - A state such as <Source state> is written as a dictionary of node attributes on the form. {<attribute1>: <value>, <attribute2>: <value> ...}. Partial states ( as described in :ref:`ref-lingo` ) can be used.
    
    - The <State update> is written as a partial state only listing the changed attributes and their new value.
+
 * The values of the options must be an expression computing the probability (in unit time) for the state transition.
 
-   - **NN** is a function that return the number of nearest neighbour in some state.
+   - **NN** is a built-in function that returns the number of nearest neighbour in some state.
    
    - All symbols not arithmetic, states, or defined functions (currently **NN** for nearest neighbours, and **MF** for mean field) are treated as parameters. Their values will be defined below.
 
@@ -395,7 +409,7 @@ I'm going to assume that you have done that part of the tutorial and have a pret
    process_class = ScriptedProcess
    
    # This is the name of the network generation function.
-   network_func = BA_networkx
+   network_func = barabasi_albert_graph_networkx
    
    # Network settings.
    [NetworkParameters]
@@ -487,7 +501,7 @@ That is it. From the conf directory - run the simulation::
 
 When the simulation is finished you'll find the same kind of files in your output directory as after the SIS simulation, but now prefixed by the new base name.
 
-Why don't you take the contents of the csv file and plot the state counts of the S, I, R states? Anything interesting in there?
+Why don't you take the contents of the csv file and plot the state counts of the S, I, R states? Anything interesting in there? You will probably discover that you need more iterations, so go ahead and increase it, run another simulation, get a cup of tea, and plot it again.
 
 
 Exercises 
@@ -497,27 +511,31 @@ Here are a couple of things to try out
 
 #. Change the values of *status* from **S**, **I**, **R** to **Susceptible**, **Infected**, **Recovered** in your process definition. What else do you have to edit? Why?
 
-#. Try around changing the states declared in the **MeanFieldStates** section. Remove the three declared ones and replace them with the single general partial state **{}** run the simulation and look at the  resulting csv file. What is different? One can also define partial states matching just a subset of attribute values. Again clear the mean field state distribution and write a single line there: **{status:(S,I)}**. Run the simulation and look at the results.
+#. Try around changing the states declared in the **MeanFieldStates** section. If you didn't do it from the start, append the general partial state **{}** to the list of mean field states. Run the simulation and look at the  resulting csv file. What is different? 
 
-#. The GSAL-model (General, Susceptible, Acute, Latent) is a model Sandy and I are currently playing with. The GSAL process is outlined in the image below. Parameters in greek (death rates :math:`\delta_S, \delta_A, \delta_L`), and number of nearest neighbours in uppercase. Implement it. **Note:** The order in which you write the transition rule matters when you have more than one transition from a node (as in the GSAL model). In this case the death rule (from state S/A/L back to G) must go first. Can you think of why that might be the case?
+#. One can also define partial states matching just a subset of attribute values. Add the folowing mean field: **{status:(S,I)}**. Run the simulation and look at the results. What does this mean field represent?
 
-[[File:GSAL_NWM_tutorial.png‎]]
 
-Writing a Process class for more exotic simulations
-===================================================
+
+Writing a Process class in Python for more exotic simulations
+=============================================================
 
 
 In some cases the ability to state simple rules is not enough for a process and we can not use the ScriptedProcess. In this case the process needs to be implemented as a python class.
 
-All processes are children of the top class **nepidemix.process.Process**, and thus need to define the appropriate methods from its interface. To simplify matter we can also derive processes from one of **Process** subclasses - **nepidemix.process.ExplicitStateProcess**. This class represents methods who's node and edge states are explicitly stated in each node. We could also derive from **nepidemix.process.AttributeStateProcess** which has some methods implemented when we want to treat the state as a combination of attribute values.
+All processes are children of the top class :ref:`nepidemix.process.Process <NepidemiX-API-Process>`, and thus need to define the appropriate methods from its interface. To simplify matter we can also derive processes from one of the subclasses :ref:`NepidemiX-API-ExplicitStateProcess`, or :ref:`NepidemiX-API-AttributeStateProcess`. 
 
-In the following example we will be using **ExplicitStateProcess** and define the way node states are updated. We will start by re-implementing the SIR model as a python class.
+:ref:`NepidemiX-API-ExplicitStateProcess` represents methods who's node and edge states are explicitly stated in each node. That is, unlike our scripted representation where a state was a unique combination of attribute values, this class stores just the name, or enumeration of the state. For instance, status=S could be called 'S', and status=I called 'I'. 
+
+For a similar treatment of states as the ScriptedProcess above before, we could also derive from :ref:`NepidemiX-API-AttributeStateProcess` which has some methods implemented when we want to treat the state as a combination of attribute values.
+
+In the following example we will be using :ref:`NepidemiX-API-ExplicitStateProcess` and define the way node states are updated. We will start by re-implementing the SIR model as a python class.
 
 Note: ExplicitStateProcess does not care about attributes (or rather only about a single attribute, the state) and therefore you do not need to care about the attribute/state/partial state -notation we used with the ScriptedProcess. A state is just a string (a single symbol). This makes notation easier but is not as powerful as before.
 
 
-SIRProcess 
------------
+The SIRProcess in Python
+------------------------
 
 As we saw above the SIR process can be scripted without doing any python programming. However, as we are already familiar with this model let's start by writing it as a python class.
 
@@ -529,9 +547,9 @@ At the top of the file we will first import some external modules that we will n
    from nepidemix.utilities.networkxtra import attributeCount, neighbors_data_iter
    import numpy
 
-The first two lines import the ExplicitStateProcess class from nepidemix as well as a utility functions, ``attributeCount``, (useful to count attributes on networkx graphs) and ``neighbors_data_iter`` (giving an itertor over nearest neighbours in a networkx graph, together with their attribute dictionaries) . The third line imports the numpy package.
+The first two lines import the ExplicitStateProcess class from nepidemix as well as a utility functions, :ref:`NepidemiX-API-networkxtra.attributeCount`, (useful to count attributes on networkx graphs) and :ref:`NepidemiX-API-networkxtra.neighbors_data_iter` (yielding an iterator over nearest neighbours in a networkx graph, together with their attribute dictionaries) . The third line imports the `numpy <http://numpy.scipy.org/>`_ package.
 
-Now we are ready to derive a class for the SIR process. Classes in python are defined using the **class** keyword, so go ahead and declare a class called **SIRProcess** deriving from **ExplicitStateProcess**, the code looks like this::
+Now we are ready to derive a class for the SIR process. Classes in python are defined using the **class** keyword, so go ahead and declare a class called **SIRProcess** deriving from :ref:`NepidemiX-API-ExplicitStateProcess`, the code looks like this::
 
    class SIRProcess(ExplicitStateProcess):
 
@@ -571,9 +589,9 @@ Now that we know what information is being passed to the methods we can go ahead
 
 As you can see, I have gone ahead and replace the **pass** with a few lines of code. You can go ahead and do the same in your file. When you are done I'll tell you what the code does.
 
-The only piece of code here that may seem a bit mysterious is the first call super... and so on. What it does however is really simple: it calls the **__init__** method of our super class. Which is **ExplicitStateProcess** as we derived from that class. The reason why we need to do this is that there may be code (there is!) in that class that needs to be executed when the class instance is created. Remember, our **SIRProcess** is an **ExplicitStateProcess** and thus share that class' attributes. (Maybe you now think, well, it's also a **Process** class, what about that initialization? The answer is that as it is not a direct descendent we don't need to worry; **ExplicitStateProcess** will take care of that. But in theory you are correct.) The command **super** will, given a class name, and a class instance (**self**) yield the super class of said class. After that we may call the **__init__** method of said class as if it was called from our **SIRProcess** object.
+The only piece of code here that may seem a bit mysterious is the first call super... and so on. What it does however is really simple: it calls the **__init__** method of our super class. Which is :ref:`NepidemiX-API-ExplicitStateProcess` as we derived from that class. The reason why we need to do this is that there may be code (there is!) in that class that needs to be executed when the class instance is created. Remember, our **SIRProcess** is an :ref:`NepidemiX-API-ExplicitStateProcess` and thus share that class' attributes. (Maybe you now think, well, it's also a **Process** class, what about that initialization? The answer is that as it is not a direct descendent we don't need to worry; :ref:`NepidemiX-API-ExplicitStateProcess` will take care of that. But in theory you are correct.) The command **super** will, given a class name, and a class instance (**self**) yield the super class of said class. After that we may call the **__init__** method of said class as if it was called from our **SIRProcess** object.
 
-Anyway, to figure out what parameters we should send, go ahead and have a look at the pydoc documentation for ExplicitStateProcess::
+Anyway, to figure out what parameters we should send, go ahead and have a look at the documentation for :ref:`NepidemiX-API-ExplicitStateProcess` by clicking that link, or use the pydoc utility::
 
    > pydoc nepidemix.process.ExplicitStateProcess
 
@@ -613,7 +631,7 @@ And now on the interesting stuff: **nodeUpdateRule**, taking care of the state u
 
 I have left some comments in the above code to highlight what is happening. I will explain some of them.
 
-First **node[1][self.STATE_ATTR_NAME]**, remember that **node** is a NetworkX node. Thus it will be a pair on the form *(<node id>, <attribute dict>)*. So, **node[1]** gives us the dictionary, and the following **[self.STATE_ATTR_NAME]** simply look up the attribute named with the value of *self.STATE_ATTR_NAME*. Which, as we have derived from **ExplicitStateProcess** is the state.
+First **node[1][self.STATE_ATTR_NAME]**, remember that **node** is a NetworkX node. Thus it will be a pair on the form *(<node id>, <attribute dict>)*. So, **node[1]** gives us the dictionary, and the following **[self.STATE_ATTR_NAME]** simply look up the attribute named with the value of *self.STATE_ATTR_NAME*. Which, as we have derived from :ref:`NepidemiX-API-ExplicitStateProcess` is the state.
 
 Second, there is a couple of lines looking like::
 
@@ -625,12 +643,14 @@ Second, there is a couple of lines looking like::
                                    self.STATE_ATTR_NAME))
 
 
-**dict(zip(self.nodeStateIds,[0]*len(self.nodeStateIds)))** may look complicated, but what it does is to construct a python dictionary where they keys are state names and where the values are zero. **zip** is a python function that takes two lists and interleave their values as tuples in a new list (which then **dict** coverts to a dictionary). The lists we send in to this is first the list of node states, named **nodeStateIds**. Now you may say 'hey, I did not construct that attribute of the **SIRProcess** class! No, you did not, but the call of the init-method of its superclass **ExplicitStateProcess** did. You probably saw this mentioned in the pydoc documentation of that class.
+**dict(zip(self.nodeStateIds,[0]*len(self.nodeStateIds)))** may look complicated, but what it does is to construct a python dictionary where they keys are state names and where the values are zero. **zip** is a python function that takes two lists and interleave their values as tuples in a new list (which then **dict** coverts to a dictionary). The lists we send in to this is first the list of node states, named **nodeStateIds**. Now you may say 'hey, I did not construct that attribute of the **SIRProcess** class! No, you did not, but the call of the init-method of its superclass :ref:`NepidemiX-API-ExplicitStateProcess` did. You probably saw this mentioned in the pydoc documentation of that class.
 
-So, now we have a dictionary of counters for every state a node can be in, what do we do with it? Well the next line will count the number of nearest neighbors of the node and update the dictionary with this value. **attributeCount** is a utility function that can be found in **nepidemix.networkxtra.utils** (check it out with pydoc if you like). It accepts two parameters: first an iterator over all nodes with data that should be counted (this could be an iterator over the full network, or in this case just over a subset) and the name of the attribute to count (in this case the name of the attribute holding the node state). Finally, let me explain the call **neighbors_data_iter(srcNetwork, node[0])**. This is also a nepidemix utility function and it creates an iterator over the nearest neighbour node, data-tuples given a network and a node in this network. Remember that **srcNetwork** is the NetworkX graph sent to our method and  **node[0]** is the node ID in this network.
+So, now we have a dictionary of counters for every state a node can be in, what do we do with it? Well the next line will count the number of nearest neighbors of the node and update the dictionary with this value. :ref:`NepidemiX-API-networkxtra.attributeCount` is a utility function that can be found in **nepidemix.utilities.networkxtra** (check it out with pydoc if you like). It accepts two parameters: first an iterator over all nodes with data that should be counted (this could be an iterator over the full network, or in this case just over a subset) and the name of the attribute to count (in this case the name of the attribute holding the node state). 
+
+Finally, let me explain the call **neighbors_data_iter(srcNetwork, node[0])**. This is also a nepidemix utility function and it creates an iterator over the nearest neighbour node, data-tuples given a network and a node in this network. Remember that **srcNetwork** is the NetworkX graph sent to our method and  **node[0]** is the node ID in this network.
 You may ask why we need a utility function to build this iterator, doesn't NetworkX provide functions for this? Unfortunately not in this case: the  nearest neighbor iterator provided by NetworkX does only give an iterator over node id's and not over (<id>, <data dict>) tuples, which is what is needed in this case.
 
-Long explanations, but fortunately you will most probably not need to change any of this code in your own implementations.
+Long explanations, but fortunately you will most probably not need to change any of this paricular piece of code in your own implementations.
 
 Now that we know the state of our node and have a dictionary where we can look up the number of nearest neighbors in a specific state, we are ready to check if the state of the node should be changed. 
 
@@ -709,31 +729,49 @@ Now, then, to repeat, you should have something like the following in your edito
 This is the full class implementation and we are ready for a first test run.
 
 
-A test run of the SIRProcess 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A test run of the Python SIRProcess 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To run a test we will of course need a configuration file, open up the configuration file you used for the scripted SIR process earlier and save it under a new name (as I am running out of imagination I picked the fantastic name **SIR_example2.ini**). You may leave most of the settings unchanged, but set the following options in the **Simulation** section::
-
-   
-   [Simulation]
-   # This is the python module containing the process we wish to use.
-   process_class_module = extended_SIR
+To run a test we will of course need a configuration file, open up the configuration file you used for the scripted SIR process earlier and save it under a new name (as I am running out of imagination I picked the fantastic name **SIR_example2.ini**). You may leave most of the settings unchanged, but we will need to make a few changes to a couple of sections. Let's start with the **[Simulation]** section. First, change the value of the **process_class** option::
 
    # This is the name of the process object.
    process_class = SIRProcess
 
+It is now set to **SIRProcess**, the name of the class we just wrote. However, as this class is not part of NepidemiX we also need to tell the simulation where to find it. This is done by adding the following options::
+
+   # This is the python module containing the process we wish to use.
+   process_class_module = extended_SIR
+
    # We need to add another module path
    module_paths = ../modules/
 
-As you can see we have added two new options: **process_class_module** and **module_paths**, and changed the value of **process_class**.
 
-If we start from the end, **module_paths** let's you tell the simulation where to look for additional python packages and modules that may not be in the standard path. In our case we want to look in the **modules** directory where we have saved **extended_SIR.py**. Now, as we named our class **SIRProcess** this is the value we assign to **process_class**. Finally, as the file name where the class implentation is saved is called *extended_SIR.py* the value of the class module will be **extended_SIR** (i.e. the file name without the *.py* ending).
+If we start from the end, **module_paths** let's you tell the simulation where to look for additional python packages and modules that may not be in the standard path. In our case we want to look in the **modules** directory where we have saved **extended_SIR.py**.  The value of the class module will be **extended_SIR** (i.e. the file name without the *.py* ending) which is what we'll assign to the **module_paths** option.
 
-When you have changed these options, you can also change the **base_name** option in the **Output** section if you want the results to be saved under a different name. Afterward save the file and open a terminal in your **tutorial/conf** directory. Run the simulation::
+When you have changed these options, you can also change the **base_name** option in the **Output** section if you want the results to be saved under a different name. 
 
-   > python ../scripts/runsimulation.py SIR_example2.ini
+Next, have a look at the **ProcessParameters** section. With ScriptedProcess we needed to provide the file name of the process definition file. This is no longer needed, so the **file** option can be removed (but we need to set the values of the unknowns: **beta**, and **gamma**.)
+
+Finally, as we are using :ref:`NepidemiX-API-ExplicitStateProcess` as a base for **SIRProcess** the node names are now the state names: 'S', 'I', and 'R'. Thus the **NodeStateDistribution** section will need to be changed to match the new names::
+
+   [NodeStateDistribution]
+   # 95% S
+   S = 0.95
+   # 5% I
+   I = 0.05
+   # Zero recovered to start with.
+   R = 0
+   
+
+Wen you are done with the changes save the file and open a terminal in your **tutorial/conf** directory. Run the simulation::
+
+   > nepidemix_runsimulation SIR_example2.ini
 
 When the simulation is finished compare with the results from the scripted implementation of the SIR process. Do they produce similar results?
+
+This is what a run gave for me over 1500 iterations:
+
+.. image:: figures/SIR_python_plot1.png
 
 
 The SIJR process and network updates 
@@ -753,7 +791,8 @@ Now, there are several way in which we can implement super spreading, a) we coul
 
 I have chosen to implement c) here, because topology changes may be costly and because I want to keep track of the number of super-spreaders. Let's call the super-spreader state **J**, and our new model the SIJR process.
 Let  the transition diagram be the following:
-[[File:SIJR.png]]
+
+.. image:: figures/SIJR_process.png
 
 Compared to the SIR process the transition from **S** to **I** is now dependent both on the number of infected neighbors (:math:`I+J`) and the fraction of the population in super-spreader-state :math:`j`. This implicitly assumes that a node in state **J** can both spread through *normal* nearest neighbor contact and through their role as super-spreaders. This can be discussed, but let's assume it for the purpose of this tutorial.
 
@@ -764,7 +803,7 @@ Implementation of SIJRProcess
 With that out of the way, let's do some programming!
 
 Will continue to work in the file **extended_SIR.py** that you created previously. A python file can contain several classes.
-Start by creating a class called **SIJRProcess** in your file, just as for **SIRProcess** it will inherit **ExplicitStateProcess**
+Start by creating a class called **SIJRProcess** in your file, just as for **SIRProcess** it will inherit :ref:`NepidemiX-API-ExplicitStateProcess`
 
 I will show you the init and node update methods in a little while, but let's start with computing fraction of the population in state **J** because what makes the SIJR process impossible to implement using the current **ScriptedProcess** is that we need acess to the fraction of nodes in state **J** when updating the node states.
 
@@ -779,7 +818,7 @@ The most straight forward way of implementing the method is as follows::
            network.graph['fracJ'] = d.get('J',0)/float(len(network))
            return network
 
-This implementation relies on the same utility function, **attributeCount** that we were using in the SIR implementation to get the nearest neighbours, but instead of feeding it an iterator of the nearest neighbours we enter an iterator over all the nodes in the network. The state counts are then stored in the dictionary **d**, and we query it for the number in state **J** (telling get to use the value of 0 in case **d** does not contain the key), dividing this amount by the size of the network.
+This implementation relies on the same utility function, :ref:`NepidemiX-API-networkxtra.attributeCount` that we were using in the SIR implementation to get the nearest neighbours, but instead of feeding it an iterator of the nearest neighbours we enter an iterator over all the nodes in the network. The state counts are then stored in the dictionary **d**, and we query it for the number in state **J** (telling get to use the value of 0 in case **d** does not contain the key), dividing this amount by the size of the network.
 
 This will work and run fine, however we explicitly go through all nodes in the network only to count the states, this can be expensive for large networks. Instead we can keep track of the number of nodes in state **J** when we update the states. Then we will have the number directly in this method and do not have perform the count.
 The new version of the method would look like this::
@@ -833,7 +872,7 @@ This assumes that we have a counter called **Jcounter** in cour class with the c
 The form should be familiar to you from implementing the SIR process. Note the increment of the **Jcounter** when we enter the state from **I** and the decreasing when leaving from **J**. Another detail worth thinking about is the branching within the **I** state where we first check if the node recovers (**R**), and if not checks if it becomes a super-spreader (**J**). This does make sense as if the check was in the other order the node could 'avoid' recovery by turning into a super-spreader.
 Finally, look at the transition probability computation going from **S** to **I**. Note how the network attribute is used.
 
-There is one piece missing from our counter-puzle however: the initial count. We can not use 0, because when we run the simulation we can set any distribution in the **NodeStateDistribution** section. Thus, we have to perform a count after the node states has been initialized.  To do so we will overload another method from Process: **initializeNetworkNodes**. This is the method that the simulation will give the node distribution from the settings and it is responsible for portioning nodes conforming to said distribution out on the network. This functionality is implemented in our parent class ( **ExplicitStateProcess** ), and we don't want to re-do that job. Therefore we will overload the method here, then call the original implementation, and afterwards do our own thing. It looks like this::
+There is one piece missing from our counter-puzle however: the initial count. We can not use 0, because when we run the simulation we can set any distribution in the **NodeStateDistribution** section. Thus, we have to perform a count after the node states has been initialized.  To do so we will overload another method from Process: **initializeNetworkNodes**. This is the method that the simulation will give the node distribution from the settings and it is responsible for portioning nodes conforming to said distribution out on the network. This functionality is implemented in our parent class ( :ref:`NepidemiX-API-ExplicitStateProcess` ), and we don't want to re-do that job. Therefore we will overload the method here, then call the original implementation, and afterwards do our own thing. It looks like this::
 
       
        def initializeNetworkNodes(self, network, *args, **kwargs):
@@ -845,7 +884,7 @@ There is one piece missing from our counter-puzle however: the initial count. We
            network.graph['fracJ'] = self.Jcounter/float(len(network))
            return network 
    
-Very straightforward, and using elements you have already seen: the **super** function for reaching into our parent and using its method as if it were our own, and then the same **attributeCount** code I used in the first example on how to count the states. This time we can't get around using it, but it is only a single time when the network is initialized so it does not matter.
+Very straightforward, and using elements you have already seen: the **super** function for reaching into our parent and using its method as if it were our own, and then the same :ref:`NepidemiX-API-networkxtra.attributeCount` code I used in the first example on how to count the states. This time we can't get around using it, but it is only a single time when the network is initialized so it does not matter.
 
 One thing worth mentioning is the new python formulation ***args**, and ****kwargs**. This is simply python's way of expressing an arbitrary parameter list. ***args** means unnamed parameters, and ****kwargs** means named parameters. The result is that the method expects only one argument (network), but that it may be followed by anything. The only thing I do with those parameters is to send them on to the parent class implementation without worrying about what they are. (In practice only the ****kwargs** part will be used, as the simulation will pass in any thing in the configuration here, and the configuration options must be named, but anyway...)
 
