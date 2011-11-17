@@ -378,12 +378,8 @@ class Simulation(object):
                     newstate = self.process.deduceNodeState(nc)
 
                     if newstate != oldstate:
-                        writeNetwork.graph[newstate] = \
-                            readNetwork.graph.get(newstate, 0) + 1
-
-                        if readNetwork.graph.has_key(oldstate):
-                            writeNetwork.graph[oldstate] =\
-                                readNetwork.graph[oldstate] - 1
+                        writeNetwork.graph[newstate] += 1
+                        writeNetwork.graph[oldstate] -= 1
 
 
                 
@@ -399,13 +395,8 @@ class Simulation(object):
                     newstate = self.process.deduceEdgeState(ne)
 
                     if newstate != oldstate:
-
-                        writeNetwork.graph[newstate] = \
-                            readNetwork.graph.get(newstate, 0) + 1
-
-                        if readNetwork.graph.has_key(oldstate):
-                            writeNetwork.graph[oldstate] =\
-                                readNetwork.graph[oldstate] - 1
+                        writeNetwork.graph[newstate] += 1
+                        writeNetwork.graph[oldstate] -= 1
 
         
       

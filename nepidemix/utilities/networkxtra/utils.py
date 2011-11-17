@@ -86,7 +86,7 @@ def attributeCount(iterator, attr):
         try:
             key = n[-1][attr]
         except KeyError:
-            logger.error("Attribute {0} not in known list".format(key))
+            logger.error("Attribute {0} not in known list".format(attr))
         scount[key] = scount.get(key,0) + 1
     return scount
 
