@@ -100,9 +100,12 @@ class Process(object):
        If set True the simulation will execute meanFieldUpdateRule for in 
        each iteration. If false the update will be skipped.
     constantTopology
-       If set to True this indicates to the simulation that the network 
-       topology remains unchanged between iterations. If set to false a
-       full topology copy will be forced between iterations.
+           If set to True this indicates to the simulation that the network 
+           topology remains unchanged between iterations, and indicates to the
+           Simulation that it may optimize by not running some undefined 
+           updates. If set to false a full topology copy will be performed and
+           this also overrides any run[Node/Edge/Network]Update flags set to 
+           False, forcing the updates.
 
     """
     def __init__(self, 
@@ -114,19 +117,30 @@ class Process(object):
         Parameters
         ----------
 
-        runNodeUpdate : bool
+        runNodeUpdate : bool, optional
            If set True the simulation will execute nodeUpdateRule for each node
            in each iteration. If false the update will be skipped.
-        runEdgeUpdate :  bool
+           Default value: True
+
+        runEdgeUpdate :  bool, optional
            If set True the simulation will execute edgeUpdateRule for each edge
            in each iteration. If false the update will be skipped.
-        runNetworkUpdate : bool
+           Default value: True
+
+        runNetworkUpdate : bool, optional
            If set True the simulation will execute meanFieldUpdateRule for in 
            each iteration. If false the update will be skipped.
-        constantTopology : bool
+           Default value: True
+
+        constantTopology : bool, optional
            If set to True this indicates to the simulation that the network 
-           topology remains unchanged between iterations. If set to false a
-           full topology copy will be forced between iterations.
+           topology remains unchanged between iterations, and indicates to the
+           Simulation that it may optimize by not running some undefined 
+           updates. If set to false a full topology copy will be performed and
+           this also overrides any run[Node/Edge/Network]Update flags set to 
+           False, forcing the updates.
+           Default value: False
+
         """
         self.runEdgeUpdate = runEdgeUpdate
         self.runNodeUpdate = runNodeUpdate
@@ -645,7 +659,7 @@ class ExplicitStateProcess(Process):
 
         """
         # This is an explicit state process, so we can just return it.
-        return node[1][self.STATE_ATTR_NAME]
+        return node[1].get(self.STATE_ATTR_NAME)
     
     
     def  deduceEdgeState(self, edge):
@@ -673,7 +687,7 @@ class ExplicitStateProcess(Process):
 
         """
         # This is an explicit state process, so we can just return it.
-        return edge[2][self.STATE_ATTR_NAME]
+        return edge[2].get(self.STATE_ATTR_NAME)
         
 
 

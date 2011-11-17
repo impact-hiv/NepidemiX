@@ -356,17 +356,18 @@ class Simulation(object):
 
 
         readNetwork = self.network
-        logger.info("Process will leave topology constant: {0}".format(self.process.constantTopology))
+        logger.info("Process will leave topology constant?: {0}".format(self.process.constantTopology))
         if self.process.constantTopology == True:
             writeNetwork = readNetwork.copy()
         else:
             writeNetwork = networkx.Graph()
-        
+            writeNetwork.graph = readNetwork.graph.copy()
+
         for it in range(self.iterations):
-#            logger.debug("Node count: {0}".format(self.network.graph))
             # Update nodes.
             if self.process.constantTopology == False or self.process.runNodeUpdate == True:
                 # Go over all nodes.
+
                 for n in readNetwork.nodes_iter(data = True):
                     oldstate = self.process.deduceNodeState(n)
                     nc = (n[0], n[1].copy())
@@ -375,12 +376,16 @@ class Simulation(object):
                                                      self.dt)
                     writeNetwork.add_node(nc[0], nc[1])
                     newstate = self.process.deduceNodeState(nc)
-#                    logger.debug("olds = {0} | news = {1}".format(oldstate, newstate))
+
                     if newstate != oldstate:
-                        if newstate in readNetwork.graph.keys():
-                            writeNetwork.graph[newstate] += 1
-                        if oldstate in readNetwork.graph.keys():
-                            writeNetwork.graph[oldstate] -= 1
+                        writeNetwork.graph[newstate] = \
+                            readNetwork.graph.get(newstate, 0) + 1
+
+                        if readNetwork.graph.has_key(oldstate):
+                            writeNetwork.graph[oldstate] =\
+                                readNetwork.graph[oldstate] - 1
+
+
                 
             # Update edges.
             if self.process.constantTopology == False or self.process.runEdgeUpdate == True:
@@ -392,24 +397,32 @@ class Simulation(object):
                                                      self.dt)
                     writeNetwork.add_edge(ne[0], ne[1], ne[2])
                     newstate = self.process.deduceEdgeState(ne)
-                    if newstate != oldstate:
-                        if newstate in readNetwork.graph.keys():
-                            writeNetwork.graph[newstate] += 1
-                        if oldstate in readNetwork.graph.keys():
-                            writeNetwork.graph[oldstate] -= 1
 
-            # Update network, and at the same time, swap read and write networks.
-            tmpN = readNetwork
+                    if newstate != oldstate:
+
+                        writeNetwork.graph[newstate] = \
+                            readNetwork.graph.get(newstate, 0) + 1
+
+                        if readNetwork.graph.has_key(oldstate):
+                            writeNetwork.graph[oldstate] =\
+                                readNetwork.graph[oldstate] - 1
+
+        
+      
             if self.process.constantTopology == False or self.process.runNetworkUpdate == True:
-                readNetwork = self.process.networkUpdateRule(writeNetwork)
-            writeNetwork = tmpN
+                 writeNetwork = self.process.networkUpdateRule(writeNetwork, self.dt)
+
+            writeNetwork.graph[self.TIME_FIELD_NAME] = readNetwork.graph[self.TIME_FIELD_NAME] + self.dt
+            self.network = writeNetwork
+            writeNetwork = readNetwork
+            readNetwork = self.network
+            
             if self.process.constantTopology == False:
                 writeNetwork.clear()
-            # Update time field
-            readNetwork.graph[self.TIME_FIELD_NAME] += self.dt
-            # Make sure that self.network always is the current one.
-            self.network = readNetwork
-            
+            # Always update the graph
+
+            writeNetwork.graph = readNetwork.graph.copy()
+
             # Check if we should save node state this iteration.
             # it +1 is checked as the 0th is always saved before the loop.
             # Also always save the last result.
