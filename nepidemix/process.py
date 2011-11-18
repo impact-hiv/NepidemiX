@@ -1329,11 +1329,14 @@ class ScriptedProcess(AttributeStateProcess):
 
             nmfl.extend(allsets)
         self.meanFieldStates = nmfl
-        # As we have constant topology.
+
         self.__currentMeanField = network.graph
+        # As we have constant topology.
         self.__currentNetworkSize = float(network.number_of_nodes())
 
         return network
+
+
 
     def __createRuleDict(self, ruleList, referenceDict):
         """
@@ -1474,7 +1477,11 @@ class ScriptedProcess(AttributeStateProcess):
         
         Process : Superclass
 
-        """        
+        """
+        # For the sake of MF make sure that __currentMeanField always points
+        # to the current srcNetwork.graph.
+        self.__currentMeanField = srcNetwork.graph
+
         # Create a nearest neighbor generaterator.
         self.__currentNNIter = [ n for n in networkxtra.neighbors_data_iter(srcNetwork, node[0])]
         # And the nearest adj matrix.
@@ -1536,7 +1543,7 @@ class ScriptedProcess(AttributeStateProcess):
             return networkxtra.entityCountDict(self.__currentNNIter, nodeAtts)
         else:
             r =  networkxtra.entityCountDict([n for n in self.__currentNNIter if networkxtra.matchDictAttributes(self.__currentAdj[n[0]], givenEdgeAtts)], nodeAtts)
-#            logger.debug("NN given. r={0}".format(r))
+
             return r
         
 
