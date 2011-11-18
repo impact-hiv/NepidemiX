@@ -96,7 +96,7 @@ class ClusterSimulation(object):
     +==============+===========================================================+
     | user_email   | Your email address.                                       |
     +--------------+-----------------------------------------------------------+
-    | queue_name   | Name of the run queue.                                    |
+    | queue_name   | Name of the run queue. Optional.                          |
     +--------------+-----------------------------------------------------------+
     | exec_command | Execution command. The command has one required parameter |
     |              | (the ini file) and one optional (but recommended) being   |
@@ -179,8 +179,7 @@ class ClusterSimulation(object):
         
         self.__assertSection(self.CFG_SECTION_PBS)
         self.__assertOptions(self.CFG_SECTION_PBS,
-                             self.CFG_PARAM_email,
-                             self.CFG_PARAM_queue)
+                             self.CFG_PARAM_email)
 
         # If there's a command option use that. Otherwise use hardcoded.
         if self.settings.has_option(self.CFG_SECTION_PBS,
@@ -240,12 +239,21 @@ class ClusterSimulation(object):
                         cp.add_section(sec)
                     cp.set(sec,opt,val)
                 cp.write(fp)
+        
+            queue_name = self.settings.get(self.CFG_SECTION_PBS,
+                                           self.CFG_PARAM_queue,
+                                           default = '')
+            if len(queue_name) < 1:
+                queue_string = ""
+            else:
+                queue_string ="#PBS -q {queue_name}".format(queue_name=queue_name)
+
             # Write PBS file.
             with open(fname+'.pbs', 'w') as fp:
                 fp.write("""
 #!/bin/bash
 #PBS -N {job_name}
-#PBS -q {queue_name}
+{queue_string}
 #PBS -M {user_email}
 #PBS -m bae
 #PBS -j oe
@@ -254,8 +262,7 @@ class ClusterSimulation(object):
 cd {work_dir}
 {command}
 """.format(job_name = self.projectName + "_{0}".format(ncalls),
-           queue_name = self.settings.get(self.CFG_SECTION_PBS,
-                                          self.CFG_PARAM_queue),
+           queue_string = queue_string,
            user_email = self.settings.get(self.CFG_SECTION_PBS,
                                           self.CFG_PARAM_email),
            path_to_log = fname+'.log',
