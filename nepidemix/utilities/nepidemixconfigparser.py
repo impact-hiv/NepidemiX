@@ -415,7 +415,15 @@ class NepidemiXConfigParser(object):
           The value of `option` casted to bool.
 
         """
-        return self.get(section, option, default, add_if_not_existing, dtype=bool)
+        def boolmap(b):
+            return b.lower() not in ['0','no', 'off', 'false']
+
+        if default != None and default == True:
+            default = 'true'
+        if default != None and default == False:
+            default = 'false'
+
+        return self.get(section, option, default , add_if_not_existing, dtype=boolmap)
 
     
     def getrange(self, section, option, dtype=str, default=None):
