@@ -5,13 +5,13 @@ Downloading and installing NepidemiX
 Prerequisites
 -------------
 
-NepidemiX is written in Python and uses functions in some third party Python packages (most notably NetworkX and numpy). You Will need these installed on your system before you can run NepidemiX. See the lists below for details.
+NepidemiX is written in Python and uses functions in some third party Python packages (most notably NetworkX and numpy). You will need these installed on your system before you can run NepidemiX. See the lists below for details.
 
 Required software
 ~~~~~~~~~~~~~~~~~
 
 * Python 2.7 [ http://www.python.org/download ]
-   NepidemiX was written for python 2.7 (at the time when development started some of the third party packages did not support Python 3), 2.6 should work as well. Python 3 is currently not officially supported, but we are working on it.
+   NepidemiX was written for python 2.7 (at the time when development started some of the third party packages did not support Python 3), Python 3 is currently not officially supported, but we are working on it.
 
 * numpy [ http://numpy.scipy.org/ ]
    Download the latest version for your system and follow the installation instructions. Numpy can also be installed as part of the larger scipy package ( http://www.scipy.org ) which brings many additional features.
