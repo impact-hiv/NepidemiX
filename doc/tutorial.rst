@@ -996,5 +996,7 @@ Exercises
 
 #. Why couldn't we have used **self.Jcount / len(srcNetwork)** directly in **nodeUpdateRule** ? What would have gone wrong?
 
+#. This process could also have been implemented using the ScriptedProcess class, using the **MF** operator to get the fraction of the network in state **J**. Go ahead and write it!
+
 #. Start again with the SIR process. Instead super-spreaders this time, assume that the infection rate :math:`\beta` now is a function :math:`\beta(t) = \beta_0 + \kappa t`, where :math:`\beta_0, \kappa` are parameters but :math:`t` is the time the node has been in the **I** state. Thus the infectiousness of a node increases linearly with the time of infection. Implement this process. Tip: remember that a node may have other attributes than state.
 
