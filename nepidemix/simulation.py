@@ -204,6 +204,22 @@ class Simulation(object):
     |                       | network is initialized by some other           |
     |                       | mechanism.                                     |
     +-----------------------+------------------------------------------------+
+    | node_init             | This switch (on/off, true/false, yes/no, 1/0)  |
+    |                       | is optional (default value true) and tells the |
+    |                       | simulation if the network nodes should be      |
+    |                       | initialized by the current process or not.     |
+    |                       | Note: This option is only interpreted if       |
+    |                       | network_init is set to on (true, yes, 1) and   |
+    |                       | is ignored otherwise. Optional. Default: true  |
+    +-----------------------+------------------------------------------------+
+    | edge_init             | This switch (on/off, true/false, yes/no, 1/0)  |
+    |                       | is optional (default value true) and tells the |
+    |                       | simulation if the network edges should be      |
+    |                       | initialized by the current process or not.     |
+    |                       | Note: This option is only interpreted if       |
+    |                       | network_init is set to on (true, yes, 1) and   |
+    |                       | is ignored otherwise. Optional. Default: true. |
+    +-----------------------+------------------------------------------------+
     | module_paths          | This is an optional list (comma-separated) of  |
     |                       | directory paths that the simulation will add   |
     |                       | to the python path before loading the network  |
@@ -297,6 +313,8 @@ class Simulation(object):
     CFG_PARAM_network_module = "network_func_module"
     CFG_PARAM_save_config = "save_config"
     CFG_PARAM_network_init = "network_init"
+    CFG_PARAM_node_init = "node_init"
+    CFG_PARAM_edge_init = "edge_init"
 
     # Info parameters.
     CFG_PARAM_execute_time = "sim_exec_time"
@@ -568,20 +586,25 @@ class Simulation(object):
         if (not settings.has_option(self.CFG_SECTION_SIM, self.CFG_PARAM_network_init))\
                 or settings.getboolean(self.CFG_SECTION_SIM, self.CFG_PARAM_network_init):
             # Nodes
-            if settings.has_section(self.CFG_SECTION_NODE_STATE_DIST):
-#                attDict = dict(settings.items(self.CFG_SECTION_NODE_STATE_DIST))
-                attDict = settings.evaluateSection(self.CFG_SECTION_NODE_STATE_DIST)
+            if settings.getboolean(self.CFG_SECTION_SIM, 
+                                   self.CFG_PARAM_node_init, default = True):
+                if settings.has_section(self.CFG_SECTION_NODE_STATE_DIST):
+                    attDict = settings.evaluateSection(self.CFG_SECTION_NODE_STATE_DIST)
+                else:
+                    attDict = {}
+                self.process.initializeNetworkNodes(self.network, **attDict)
             else:
-                attDict = {}
-            self.process.initializeNetworkNodes(self.network, **attDict)
-            
+                logger.info("Skipping node initialization.")
             # Edges
-            if settings.has_section(self.CFG_SECTION_EDGE_STATE_DIST):
-                attDict = settings.evaluateSection(self.CFG_SECTION_EDGE_STATE_DIST)
+            if settings.getboolean(self.CFG_SECTION_SIM, 
+                                   self.CFG_PARAM_edge_init, default = True):
+                if settings.has_section(self.CFG_SECTION_EDGE_STATE_DIST):
+                    attDict = settings.evaluateSection(self.CFG_SECTION_EDGE_STATE_DIST)
+                else:
+                    attDict = {}
+                self.process.initializeNetworkEdges(self.network, **attDict)
             else:
-                attDict = {}
-            self.process.initializeNetworkEdges(self.network, **attDict)
-            
+                logger.info("Skipping edge initialization.") 
             # The network itself.
             # Right now it doesn't have a configuration section.
             self.process.initializeNetwork(self.network)
