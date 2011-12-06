@@ -229,6 +229,15 @@ class Simulation(object):
     |                       | tutorial for examples on how this option is    |
     |                       | used.                                          |
     +-----------------------+------------------------------------------------+
+    | include_files         | Optional list (comma-separated) containing     |
+    |                       | names of additional configuration files to     |
+    |                       | include. The files will be read in order and   |
+    |                       | their sections added to the configuration.     |
+    |                       | This allows for splitting of large             |
+    |                       | configuration files into logical sections      |
+    |                       | and store them in individual files.            |
+    +-----------------------+------------------------------------------------+
+
     
     +----------------------------+-------------------------------------------+
     |                         Output section options                         |
@@ -301,6 +310,8 @@ class Simulation(object):
     CFG_SECTION_EDGE_STATE_DIST = "EdgeStateDistribution"
 
     # Parameter names.
+    
+    # Simulation parameters
     CFG_PARAM_mod_path = "module_paths"
     CFG_PARAM_outputDir = "output_dir"
     CFG_PARAM_baseFileName = "base_name"
@@ -315,6 +326,7 @@ class Simulation(object):
     CFG_PARAM_network_init = "network_init"
     CFG_PARAM_node_init = "node_init"
     CFG_PARAM_edge_init = "edge_init"
+    CFG_PARAM_include_files = "include_files"
 
     # Info parameters.
     CFG_PARAM_execute_time = "sim_exec_time"
@@ -476,6 +488,18 @@ class Simulation(object):
 
         """
 
+        
+        self.includeFiles = settings.getrange(self.CFG_SECTION_SIM,
+                                              self.CFG_PARAM_include_files,
+                                              default = [])
+            
+        if len(self.includeFiles) > 0:
+            logger.info("Files {0} will be included.".format(", ".join(self.includeFiles)))
+            for fileName in self.includeFiles:
+                with open(fileName) as fp:
+                    settings.readfp(fp)
+
+
         self.settings = settings
         if not self.settings.has_section(self.CFG_SECTION_INFO):
             self.settings.add_section(self.CFG_SECTION_INFO)
@@ -507,6 +531,7 @@ class Simulation(object):
                 abspth = os.path.abspath(pth)
                 logger.info("Adding '{0}' to python path.".format(abspth))
                 sys.path.append(abspth)
+
                 
             self.saveNodeStateInterval = settings.getint(self.CFG_SECTION_OUTPT,
                                                          self.CFG_PARAM_save_node_state_interval, 
@@ -526,6 +551,9 @@ class Simulation(object):
             self.saveEdgeState = settings.getboolean(self.CFG_SECTION_OUTPT,
                                                      self.CFG_PARAM_save_edge_state,
                                                      default = True)
+
+
+
             
             # If there is no option to set a unique file name take it as true.
             # If there is one we have to check if it is set to true.
