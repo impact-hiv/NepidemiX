@@ -47,6 +47,12 @@ class NepidemiXConfigParser(object):
         Init method.
 
         """
+
+        # Regular expression matching a number
+        numre = "(([+-]?\d*\.?\d+)([Ee][+-]?\d+)?)"
+        # Expression matching a range <start>:<step>:<end>
+        self.rangere = re.compile("(\s*{0}\s*\:\s*{0}\s*\:\s*{0}\s*)".format(numre)) 
+
         self.sectionDict = collections.OrderedDict()
 
     def read(self, fileName):
@@ -99,11 +105,10 @@ class NepidemiXConfigParser(object):
                         logger.error("An ini file option must be within a section. No section provided. Ignoring line '{0}'."\
                                          .format(l))
                     else:
-                        # Split the string at either = .
+                        # Split the string at = .
                         ll = l.split('=',1)
                         if len(ll) < 2:
-                            logger.error("Warning only option {0} found, no value. Setting to None."\
-                                                 .format(l))
+                            # In case = is left out, the option is created ad value set to None.
                             val = None
                         else:
                             val = ll[1].strip()
@@ -481,7 +486,9 @@ class NepidemiXConfigParser(object):
         if rstring == "":
             return default
         # Otherwise parse the string.
-        return self.parseRange(rstring, dtype)
+        rval = self.parseRange(rstring, dtype)
+        return rval
+        
 
 
     def parseRange(self, rstring, dtype=str):
@@ -518,14 +525,13 @@ class NepidemiXConfigParser(object):
 
         """ 
         retval = None
-        if rstring.find(':') > -1:
-            # Check if there's a ':' in that case we assume it is a range.
+
+
+        if len(self.rangere.findall(rstring)) == 1:
+            #Assume it is a range.
             stps = rstring.split(':')
-            if len(stps) != 3:
-                # We need exactly 3 numbers, print error otherwise.
-                msg = "A range must be on the form <number>:<number>:<number>"
-                logger.error(msg)
-            else:
+            # We need exactly 3 numbers.
+            if len(stps) == 3:
                 # If all of the values has int-type use that,
                 # otherwise it has to be float.
                 # Not best way of checking, but the only useful right 
@@ -541,8 +547,8 @@ class NepidemiXConfigParser(object):
                 retval = numpy.arange(rstart, rend, rstep)
         else:
             # In this case we should have a single value, or an comma-
-            # separated list of numbers.
-            # Create the list of numbers.
+            # separated list of data.
+            # Create the list of data.
             retval = numpy.array([n.strip() for n in rstring.split(',')],dtype=dtype)
 #        logger.debug("Created array: {0}".format(retval))
             
