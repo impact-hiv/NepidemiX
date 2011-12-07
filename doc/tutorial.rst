@@ -253,18 +253,14 @@ Finally, we must define what data should be saved, where it should be saved, and
    # section will be saved.
    save_config = yes
 
-   # If this is true/yes/on, the network node states will be sampled and saved as a csv file.
+   # If this is true/yes/on, the network node states will be counted and saved as a csv file.
    # Default value True.
-   # Note only valid if the current process support node updates. If not nothing will be saved.
-   save_node_state = yes
-
-   # Sample node every ... iterations. Value should be integer >= 1.
+   # Note only valid if the current process support updates. If not nothing will be saved.
+   save_state_count = yes
+   
+   # Count nodes every ... iterations. Value should be integer >= 1.
    # Default value 1.
-   save_node_state_interval = 1
-
-   # Sample node every ... iterations. Value should be integer >= 1.
-   # Default value 1.
-   save_node_state_interval = 1
+   save_state_count_interval = 1
 
    # If this is true, yes, 1, or on, a copy of the network will be saved.
    # Save interval may be set using the save_network_interval key.

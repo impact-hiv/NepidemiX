@@ -262,20 +262,27 @@ class Simulation(object):
     |                            | the full program config, plus an Info     |
     |                            | section will be saved.                    |
     +----------------------------+-------------------------------------------+
-    | save_node_state            | Optional (default value true) switch      |
+    | save_state_count            | Optional (default value true) switch     |
     |                            | (on/off, true/false, yes/no, 1/0).        |            
-    |                            | If this is true/yes/on, the network nod   |
-    |                            | states will be sampled and saved as a csv |
+    |                            | If this is true/yes/on, the network node  |
+    |                            | states will be counted and saved as a csv |
     |                            | file.                                     |
     |                            | Note: only valid if the current process   |
     |                            | support node updates. If not, nothing     |
     |                            | will be saved.                            |
     +----------------------------+-------------------------------------------+
-    | save_node_state_interval   | Optional (default value 1). Sample nodes  |
+    | save_state_count_interval   | Optional (default value 1). Count nodes  |
     |                            | every <value> iterations. Value should be |
     |                            | an integer >= 1. Note, initial and final  |
     |                            | node state counts are always saved even   |
     |                            | if they are not covered by the interval.  |
+    +----------------------------+-------------------------------------------+
+    | save_state_count_list       | Optional. List of node states to count.  |
+    |                            | If left out all states as specified by    |
+    |                            | the process will be counted.              |
+    |                            | Note that this option only is useful to   |
+    |                            | limit the states counted. It is up to the |
+    |                            | process to define which those states are. |
     +----------------------------+-------------------------------------------+
     | save_network_compress_file | Optional (default value true) switch      |
     |                            | (on/off, true/false, yes/no, 1/0).        |
@@ -339,8 +346,8 @@ class Simulation(object):
     CFG_PARAM_save_network_format = "save_network_format"
     CFG_PARAM_save_network_compress_file = "save_network_compress_file"
     # Node output parameters
-    CFG_PARAM_save_node_state = "save_node_state"
-    CFG_PARAM_save_node_state_interval = "save_node_state_interval"
+    CFG_PARAM_save_state_count = "save_state_count"
+    CFG_PARAM_save_state_count_interval = "save_state_count_interval"
     # Edge output parameters
     CFG_PARAM_save_edge_state = "save_edge_state"
     CFG_PARAM_save_edge_state_interval = "save_edge_state_interval"
@@ -447,8 +454,8 @@ class Simulation(object):
             # Check if we should save node state this iteration.
             # it +1 is checked as the 0th is always saved before the loop.
             # Also always save the last result.
-            if  self.saveNodeState and \
-                    ((self.saveNodeStateInterval >0 and (it+1)%(self.saveNodeStateInterval) == 0)\
+            if  self.saveStates and \
+                    ((self.saveStatesInterval >0 and (it+1)%(self.saveStatesInterval) == 0)\
                          or (it == self.iterations -1 )):
                 #self.stateSamples.append(collections.OrderedDict({self.TIME_FIELD_NAME:0.0}))
                 # Add the mean field states.
@@ -533,14 +540,14 @@ class Simulation(object):
                 sys.path.append(abspth)
 
                 
-            self.saveNodeStateInterval = settings.getint(self.CFG_SECTION_OUTPT,
-                                                         self.CFG_PARAM_save_node_state_interval, 
+            self.saveStatesInterval = settings.getint(self.CFG_SECTION_OUTPT,
+                                                         self.CFG_PARAM_save_state_count_interval, 
                                                          default=1)
 
 
 
-            self.saveNodeState = settings.getboolean(self.CFG_SECTION_OUTPT,
-                                                         self.CFG_PARAM_save_node_state,
+            self.saveStates = settings.getboolean(self.CFG_SECTION_OUTPT,
+                                                         self.CFG_PARAM_save_state_count,
                                                      default=True)
     
 
@@ -667,7 +674,7 @@ class Simulation(object):
 
         """
         logger.info("Saving data.")
-        if self.saveNodeState == True:
+        if self.saveStates == True:
             if self.stateSamples == None:
                 logger.error("No data to save exists. Run execute() first.")
             elif self.process.runNodeUpdate == True:
