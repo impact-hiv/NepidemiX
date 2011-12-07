@@ -117,7 +117,7 @@ class SIJRProcess(ExplicitStateProcess):
 
         return node
 
-    def networkUpdateRule(self, network):
+    def networkUpdateRule(self, network, dt):
         # We have to count the fraction of the population
         # in the J state here.
         # However as the variable self.Jcounter contains
