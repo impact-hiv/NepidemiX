@@ -25,7 +25,8 @@ import time
 import networkx
 import copy
 import os
-import collections
+from collections import OrderedDict
+
 
 # Local imports
 
@@ -345,12 +346,14 @@ class Simulation(object):
     CFG_PARAM_save_network_interval = "save_network_interval"
     CFG_PARAM_save_network_format = "save_network_format"
     CFG_PARAM_save_network_compress_file = "save_network_compress_file"
-    # Node output parameters
     CFG_PARAM_save_state_count = "save_state_count"
     CFG_PARAM_save_state_count_interval = "save_state_count_interval"
-    # Edge output parameters
-    CFG_PARAM_save_edge_state = "save_edge_state"
-    CFG_PARAM_save_edge_state_interval = "save_edge_state_interval"
+
+
+    # Names of fields in the network graph dictionary.
+    TIME_FIELD_NAME = "Time"
+    STATE_COUNT_FIELD_NAME = "state_count"
+    STATE_INFLUX_FIELD_NAME = "state_influx"
 
     def __init__(self):
         """
@@ -360,9 +363,10 @@ class Simulation(object):
         self.process = None
         self.network = None
         self.stateSamples = None
+        self.stateInFlux = None
+
         self.save_config = False
         self.settings = None
-        self.TIME_FIELD_NAME = "Time"
 
 
     def execute(self):
@@ -384,12 +388,24 @@ class Simulation(object):
         
         # Create state count arrays, count and add the initial states.
 
-        # Add the vector as a np array to allow for easy numerical processing later.
-        self.stateSamples = []
+        self.stateSamples = {}
+        
+        self.stateSamples[self.STATE_COUNT_FIELD_NAME] = []
 
+    
         # Add entry for time 0.
-        self.stateSamples.append(dict([ (s,str(v)) for s,v in self.network.graph.iteritems()]))
-        logger.info("Initial node state sample vector: {0}".format(self.stateSamples))
+        for k in self.stateSamples:
+            # Create dictionary.
+            countDict = {}
+            # Insert time stamp.
+            countDict[self.TIME_FIELD_NAME] = 0.0
+            # Copy data.
+            countDict.update(dict([ (s,str(v)) for s,v in self.network.graph[k].iteritems()]))
+
+            self.stateSamples[k].append(countDict)
+
+
+        logger.info("Initial node state sample vector: {0}".format(self.stateSamples[self.STATE_COUNT_FIELD_NAME]))
 
 
         readNetwork = self.network
@@ -398,7 +414,7 @@ class Simulation(object):
             writeNetwork = readNetwork.copy()
         else:
             writeNetwork = networkx.Graph()
-            writeNetwork.graph = readNetwork.graph.copy()
+            writeNetwork.graph[self.STATE_COUNT_FIELD_NAME] = readNetwork.graph[self.STATE_COUNT_FIELD_NAME].copy()
 
         for it in range(self.iterations):
             # Update nodes.
@@ -415,8 +431,8 @@ class Simulation(object):
                     newstate = self.process.deduceNodeState(nc)
 
                     if newstate != oldstate:
-                        writeNetwork.graph[newstate] += 1
-                        writeNetwork.graph[oldstate] -= 1
+                        writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
+                        writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
 
 
                 
@@ -432,8 +448,8 @@ class Simulation(object):
                     newstate = self.process.deduceEdgeState(ne)
 
                     if newstate != oldstate:
-                        writeNetwork.graph[newstate] += 1
-                        writeNetwork.graph[oldstate] -= 1
+                        writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
+                        writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
 
         
       
@@ -447,21 +463,25 @@ class Simulation(object):
             
             if self.process.constantTopology == False:
                 writeNetwork.clear()
-            # Always update the graph
+            # Always update the graph for each sub dictionary.
+            for k in self.stateSamples:
+                writeNetwork.graph[k] = readNetwork.graph[k].copy()
 
-            writeNetwork.graph = readNetwork.graph.copy()
-
-            # Check if we should save node state this iteration.
-            # it +1 is checked as the 0th is always saved before the loop.
-            # Also always save the last result.
-            if  self.saveStates and \
-                    ((self.saveStatesInterval >0 and (it+1)%(self.saveStatesInterval) == 0)\
-                         or (it == self.iterations -1 )):
-                #self.stateSamples.append(collections.OrderedDict({self.TIME_FIELD_NAME:0.0}))
-                # Add the mean field states.
-                #self.stateSamples[-1].update(self.network.graph)
-#                self.stateSamples.append(self.network.graph.copy())
-                self.stateSamples.append(dict([ (s,str(v)) for s,v in self.network.graph.iteritems()]))
+                # Check if we should save node state this iteration.
+                # it +1 is checked as the 0th is always saved before the loop.
+                # Also always save the last result.
+                if  self.saveStates[k] and \
+                        ((self.saveStatesInterval[k] >0 and (it+1)%(self.saveStatesInterval[k]) == 0)\
+                             or (it == self.iterations -1 )):
+                    # Add the mean field states.
+                    countDict = {}
+                    # Create dictionary.
+                    # Insert time stamp.
+                    countDict[self.TIME_FIELD_NAME] = self.network.graph[self.TIME_FIELD_NAME]
+                    # Copy data.
+                    countDict.update(dict([ (s,str(v)) for s,v in self.network.graph[k].iteritems()]))
+                    # Add to current list of samples.
+                    self.stateSamples[k].append(countDict)
             # Check network saving. Same here as for states above:
             # look at iteration +1, as it is done after execution of the rules.
             if self.saveNetwork == True and ( \
@@ -539,25 +559,21 @@ class Simulation(object):
                 logger.info("Adding '{0}' to python path.".format(abspth))
                 sys.path.append(abspth)
 
+            self.saveStatesInterval = {}
+
+            self.saveStatesInterval[self.STATE_COUNT_FIELD_NAME] = \
+                settings.getint(self.CFG_SECTION_OUTPT,
+                                self.CFG_PARAM_save_state_count_interval, 
+                                default=1)
                 
-            self.saveStatesInterval = settings.getint(self.CFG_SECTION_OUTPT,
-                                                         self.CFG_PARAM_save_state_count_interval, 
-                                                         default=1)
 
-
-
-            self.saveStates = settings.getboolean(self.CFG_SECTION_OUTPT,
-                                                         self.CFG_PARAM_save_state_count,
-                                                     default=True)
+            self.saveStates = {}
+            
+            self.saveStates[self.STATE_COUNT_FIELD_NAME] = \
+                settings.getboolean(self.CFG_SECTION_OUTPT,
+                                    self.CFG_PARAM_save_state_count,
+                                    default=True)
     
-
-            self.saveEdgeStateInterval = settings.getint(self.CFG_SECTION_OUTPT,
-                                                         self.CFG_PARAM_save_edge_state_interval,
-                                                         default=1)
-
-            self.saveEdgeState = settings.getboolean(self.CFG_SECTION_OUTPT,
-                                                     self.CFG_PARAM_save_edge_state,
-                                                     default = True)
 
 
 
@@ -602,9 +618,12 @@ class Simulation(object):
                                     default = 'nepidemix.utilities.networkgeneratorwrappers')
         self.network = _import_and_execute(nwork_name, nwork_module,dparams)
         # Change the standard dictionary in the NetworkX graph to an ordered one.
-        self.network.graph = collections.OrderedDict(self.network.graph)
+        self.network.graph = OrderedDict(self.network.graph)
         # Add an attribute for time.
         self.network.graph[self.TIME_FIELD_NAME] = 0.0
+        # Create a dictionary for the state counts.
+        self.network.graph[self.STATE_COUNT_FIELD_NAME] = OrderedDict()
+
         logger.info("Created '{0}' network with {1} nodes." \
                        .format(nwork_name, len(self.network)))
         # Save the average clustering to info section
@@ -674,22 +693,31 @@ class Simulation(object):
 
         """
         logger.info("Saving data.")
-        if self.saveStates == True:
+        if True in self.saveStates.values():
             if self.stateSamples == None:
                 logger.error("No data to save exists. Run execute() first.")
-            elif self.process.runNodeUpdate == True:
-                stateDataFName = self.outputDir+"/"+self.baseFileName+"_state_count.csv"
-                try:
-                    with open(stateDataFName, 'wb') as stateDataFP:
-                        stateDataWriter = csv.writer(stateDataFP)
-                        # Write labels in first row
-                        keys = self.network.graph.keys()
-                        stateDataWriter.writerow(keys)
-                        for row in self.stateSamples:
-                            stateDataWriter.writerow([row.get(k,0) for k in keys])
-                except IOError:
-                    logger.error("Could not open file '{0}' for writing!"\
-                                     .format(stateDataFName))
+            else:
+                for sampleName in self.stateSamples:
+                    if self.saveStates[sampleName] == True:
+                        stateDataFName = self.outputDir+"/"+self.baseFileName+"_{0}.csv".format(sampleName)
+                        logger.info("File = '{0}'".format(stateDataFName))
+                        try:
+                            with open(stateDataFName, 'wb') as stateDataFP:
+                                stateDataWriter = csv.writer(stateDataFP)
+
+                                # Keys are time stamp
+                                keys = [self.TIME_FIELD_NAME]
+                                # and all labels
+                                keys.extend(self.network.graph[sampleName].keys())
+
+                                # Write labels in first row
+                                stateDataWriter.writerow(keys)
+                                # Write data.
+                                for row in self.stateSamples[sampleName]:
+                                    stateDataWriter.writerow([row.get(k,0) for k in keys])
+                        except IOError:
+                            logger.error("Could not open file '{0}' for writing!"\
+                                             .format(stateDataFName))
 
         if self.save_config == True:
             if self.settings == None:

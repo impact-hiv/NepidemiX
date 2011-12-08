@@ -503,12 +503,12 @@ class ExplicitStateProcess(Process):
             c = networkxtra.attributeCount(
                 network.nodes_iter(data=True),
                 self.STATE_ATTR_NAME)
-            network.graph.update(c)
+            network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].update(c)
         if len(self.edgeStateIds) > 0:
             c = networkxtra.attributeCount(
                 network.edges_iter(data=True),
                 self.STATE_ATTR_NAME)
-            network.graph.update(c)
+            network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].update(c)
 
     def initializeNetworkNodes(self, network, *args, **kwargs):
         """
@@ -565,8 +565,8 @@ class ExplicitStateProcess(Process):
         # (because they were rounded down or set to zero perhaps).
         # Just to keep count.
         for k in kwargs:
-            if not network.graph.has_key(k):
-                network.graph[k] = 0
+            if not network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].has_key(k):
+                network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][k] = 0
 
         return network
 
@@ -628,8 +628,8 @@ class ExplicitStateProcess(Process):
         # (because they were rounded down or set to zero perhaps).
         # Just to keep count.
         for k in kwargs:
-            if not network.graph.has_key(k):
-                network.graph[k] = 0
+            if not network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].has_key(k):
+                network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][k] = 0
         
         return network
 
@@ -821,7 +821,7 @@ class AttributeStateProcess(Process):
         # Update the network with the number of nodes/edges in the tracked mean field states.
         for s in self.meanFieldStates:
             sset = frozenset(s)
-            network.graph[sset] = networkxtra.entityCount(network.nodes_iter(data=True), sset)
+            network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][sset] = networkxtra.entityCount(network.nodes_iter(data=True), sset)
         return network
 
     def initializeNetworkNodes(self, network, *args,**kwargs):
@@ -1307,30 +1307,30 @@ class ScriptedProcess(AttributeStateProcess):
             # List for linked counters
             nsum = 0
             l = []
-            if not network.graph.has_key(oStateSet):
+            if not network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].has_key(oStateSet):
                 if len(allsets) > 1:
                     # If multiple target states were created, we need to create a listener
                     # for the generalized mean field state.
                     listnr = LinkedCounter(nsum)
                     l.append(listnr)
-                    network.graph[oStateSet] = listnr
+                    network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][oStateSet] = listnr
                 for k in allsets:
                     # Count number of nodes matching this state.
                     nns = networkxtra.entityCountSet(network.nodes_iter(data=True), k)
                     # Add them to the network graph.
-                    if network.graph.has_key(k):
-                        network.graph[k].linkedCounters.extend(l)
+                    if network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].has_key(k):
+                        network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][k].linkedCounters.extend(l)
                     else:
-                        network.graph[k] = LinkedCounter(nns, l)
+                        network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][k] = LinkedCounter(nns, l)
                 # If we created a listener we need to set is value to the sum as well.
                 if len(allsets) >1:
-                    network.graph[oStateSet].counter = networkxtra.entityCountSet(network.nodes_iter(data=True), oStateSet)
+                    network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][oStateSet].counter = networkxtra.entityCountSet(network.nodes_iter(data=True), oStateSet)
 
 
             nmfl.extend(allsets)
         self.meanFieldStates = nmfl
 
-        self.__currentMeanField = network.graph
+        self.__currentMeanField = network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
         # As we have constant topology.
         self.__currentNetworkSize = float(network.number_of_nodes())
 
@@ -1480,7 +1480,7 @@ class ScriptedProcess(AttributeStateProcess):
         """
         # For the sake of MF make sure that __currentMeanField always points
         # to the current srcNetwork.graph.
-        self.__currentMeanField = srcNetwork.graph
+        self.__currentMeanField = srcNetwork.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
 
         # Create a nearest neighbor generaterator.
         self.__currentNNIter = [ n for n in networkxtra.neighbors_data_iter(srcNetwork, node[0])]
