@@ -100,12 +100,12 @@ class Process(object):
        If set True the simulation will execute meanFieldUpdateRule for in 
        each iteration. If false the update will be skipped.
     constantTopology
-           If set to True this indicates to the simulation that the network 
-           topology remains unchanged between iterations, and indicates to the
-           Simulation that it may optimize by not running some undefined 
-           updates. If set to false a full topology copy will be performed and
-           this also overrides any run[Node/Edge/Network]Update flags set to 
-           False, forcing the updates.
+       If set to True this indicates to the simulation that the network 
+       topology remains unchanged between iterations, and indicates to the
+       Simulation that it may optimize by not running some undefined 
+       updates. If set to false a full topology copy will be performed and
+       this also overrides any run[Node/Edge/Network]Update flags set to 
+       False, forcing the updates.
 
     """
     def __init__(self, 
@@ -308,8 +308,12 @@ class Process(object):
         """
         Perform initialization on global network options.
         
-        Called after node and edge initialization. May be used for instance in setting up
-        mean field states.
+        Called after node and edge initialization. Should if overloaded update
+        the dictionary in network.graph[Simulation.STATE_COUNT_FIELD_NAME] so
+        that it contains the number of nodes/edges in each state used by the
+        process.
+
+        May be used for instance in setting up mean field states.
 
         Parameters
         ----------
@@ -391,7 +395,7 @@ class Process(object):
         
         state : hashable
            The method should in some way come up with a state descriptor from
-           from `node` and return it. The state representation must be a hashable
+           from `edge` and return it. The state representation must be a hashable
            object.
 
         """
