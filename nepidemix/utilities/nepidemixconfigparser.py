@@ -431,7 +431,7 @@ class NepidemiXConfigParser(object):
         return self.get(section, option, default , add_if_not_existing, dtype=boolmap)
 
     
-    def getrange(self, section, option, dtype=str, default=None):
+    def getrange(self, section, option, default=None, add_if_not_existing=True, dtype=str):
         """
         Create a range of values from option string.
 
@@ -467,6 +467,10 @@ class NepidemiXConfigParser(object):
            not None, the value of `default` will be returned and no exception 
            raised. Default - None.
 
+        add_if_not_existing : bool, optional
+           If this is True, the option does not exist and` default` != None, the
+           option will be created and set to the value of default.
+
         dtype : special, optional
            The datatype of the returned numpy array. Default: str .
 
@@ -481,7 +485,8 @@ class NepidemiXConfigParser(object):
 
         """
         # Get the option as a string.
-        rstring = self.get(section, option, default = "", dtype=str)
+        rstring = self.get(section, option, default = "", 
+                           add_if_not_existing=add_if_not_existing, dtype=str)
         # Check if we got the empty string. Then return default.
         if rstring == "":
             return default
