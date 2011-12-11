@@ -30,6 +30,7 @@ import csv
 import collections
 
 from nepidemix import simulation
+from nepidemix.simulation import Simulation
 from nepidemix.utilities import parameterexpander
 from nepidemix import exceptions as nepxExceptions
 from nepidemix.utilities import NepidemiXConfigParser
@@ -124,7 +125,6 @@ class ClusterSimulation(object):
     CFG_PARAM_repeat_call = "repeat_call"
     CFG_PARAM_config_dir_name = "config_dir_base"
     CFG_PARAM_config_base_name = "config_file_base"
-    all_sections = [CFG_SECTION_CLUSTER, CFG_SECTION_PBS, CFG_SECTION_INFO]
 
     original_config_file_name = 'original_config.ini'
     fileBaseName = 'config'
@@ -143,6 +143,27 @@ class ClusterSimulation(object):
 
         
         """
+
+        # Filter out these sections from the generation and do not let them pass.
+        self.exclude_sections = [
+            self.CFG_SECTION_CLUSTER, 
+            self.CFG_SECTION_PBS, 
+            self.CFG_SECTION_INFO
+            ]
+
+        # Filter these options from the generation and do not let them pass.
+        self.exclude_options = [ (Simulation.CFG_SECTION_SIM, \
+                                      Simulation.CFG_PARAM_include_files)
+                                 ]
+        # Ignore these sections, allowing them to pass on, but do not expand their options.
+        # Done for parameter we know to be ranges meant for the simulation.
+        self.ignore_sections = []
+
+        # Ignore these options, allowing them to pass on, but do not expand them.
+        # Done for parameter we know to be ranges meant for the simulation.
+        self.ignore_options = [ (Simulation.CFG_SECTION_OUTPT, \
+                                     Simulation.CFG_PARAM_save_state_count_mask)
+                               ]
         if settings != None:
             self.configure(settings)
     
@@ -159,6 +180,17 @@ class ClusterSimulation(object):
         """
 
         self.settings = settings
+
+        self.includeFiles = settings.getrange(Simulation.CFG_SECTION_SIM,
+                                              Simulation.CFG_PARAM_include_files,
+                                              default = [],
+                                              add_if_not_existing = False)
+            
+        if len(self.includeFiles) > 0:
+            logger.info("Files {0} will be included.".format(", ".join(self.includeFiles)))
+            for fileName in self.includeFiles:
+                with open(fileName) as fp:
+                    settings.readfp(fp)
 
         # Parse the main config section
         self.__assertSection(self.CFG_SECTION_CLUSTER)
@@ -187,7 +219,7 @@ class ClusterSimulation(object):
             self.simprogram = self.settings.get(self.CFG_SECTION_PBS,
                                            self.CFG_PARAM_command)
         else:
-            self.simprogram = "runsimulation.sh"
+            self.simprogram = "nepidemix_runsimulation"
 
         # Check for repetitions, use if it is not there.
         if self.settings.has_option(self.CFG_SECTION_CLUSTER,
@@ -203,7 +235,6 @@ class ClusterSimulation(object):
             self.settings.add_section(self.CFG_SECTION_INFO)
 
 
-
     def createSimulationConfigs(self):
         """
         Tailor build individual configurations for each simulation case.
@@ -211,8 +242,12 @@ class ClusterSimulation(object):
         # Go through all settings options. Those not belonging to this
         # class is assumed to belong to the program we want to deploy.
         logger.info("Building parameter lists...")
-        paramRangeList, varOptList = buildParamRangeList(self.settings,
-                                                         self.all_sections)
+        paramRangeList, varOptList \
+            = buildParamRangeList(self.settings,
+                                  excludeSections = self.exclude_sections,
+                                  excludeOptions = self.exclude_options,
+                                  ignoreSections = self.ignore_sections,
+                                  ignoreOptions = self.ignore_options)
 
         logger.info("Creating project directory at '{0}'".format(self.projectDirPath))
         os.makedirs(self.projectDirPath)
@@ -226,7 +261,11 @@ class ClusterSimulation(object):
 # Running it will submit all generated PBS jobs to the queue.
 """)
         for ddict, cpath in paramsPaths(self.projectDirPath, 
-                                       paramRangeList, self.confDirName):
+                                        paramRangeList, self.confDirName,
+                                        excludeSections = self.exclude_sections, 
+                                        excludeOptions = self.exclude_options,
+                                        ignoreSections = self.ignore_sections,
+                                        ignoreOptions = self.ignore_options):
             cp = NepidemiXConfigParser()
             os.makedirs(cpath, 0750)
             
@@ -296,17 +335,7 @@ cd {work_dir}
                         .format(ncalls, self.reps))
    
         
-    # def buildInfoTable(self):
-    #     """
-        
-    #     """
-    #     paramRangeList, varOptList = buildParamRangeList(self.settings, 
-    #                                                      self.all_sections)
-    #     dataexp = DataBuildExpander(self.projectDirPath, 
-    #                                 self.projectName,
-    #                                 paramRangeList)
-    #     dataexp.expand()
-    #     return varOptList, dataexp.configList
+
             
     def __assertSection(self,section):
         """
@@ -351,7 +380,9 @@ cd {work_dir}
             logger.error(emsg)
             raise nepxExceptions.NepidemiXBaseException(emsg)
 
-def buildParamRangeList(settings, excludeSections  = []):
+def buildParamRangeList(settings, 
+                        excludeSections  = [], excludeOptions = [],
+                        ignoreSections = [], ignoreOptions = []):
     """
     Building the parameter range list from a NepidemiXConfigParser object.
     
@@ -365,8 +396,22 @@ def buildParamRangeList(settings, excludeSections  = []):
        The settings object.
 
     excludeSections : array_like
-       List of section names to exclude. I.e. their content won't be 
-       transferred to the result.
+       List of section names to exclude. 
+       I.e. their content won't be transferred to the result.
+
+    excludeOptions : array_like
+       List of (section, option) pairs of names to exclude. 
+       I.e. their content won't be transferred to the result.
+
+    ignoreSections : array_like
+       List of section names not to expand.
+       Nothing in these sections will be expanded even if they contain ranges
+       but their values will still be moved to the result.
+
+    ignoreOptions : array_like
+       List of (section, option) pairs not to expand.
+       These options will not be expanded even if they contain ranges
+       but their values will still be moved to the resulting list.
 
     Returns
     -------
@@ -383,17 +428,26 @@ def buildParamRangeList(settings, excludeSections  = []):
     for sect in settings.sections():
         if sect not in excludeSections:
             for optName, optValue in settings.items(sect):
-                rvals = settings.parseRange(optValue)
-                if len(rvals) > 1:
-                   varOptList.append((sect,optName)) 
-                paramRangeList.append(((sect, optName),
-                                      rvals))
+                if (sect, optName) not in excludeOptions:
+                    if (sect not in ignoreSections) \
+                            and ((sect, optName) not in ignoreOptions):
+                        rvals = settings.parseRange(optValue)
+                    else:
+                        rvals = [optValue]
+
+                    if len(rvals) > 1:
+                           varOptList.append((sect,optName)) 
+                    paramRangeList.append(((sect, optName),
+                                           rvals))
+
     return paramRangeList, varOptList
 
 
 
 
-def findVaryingParameters(pConfig):
+def findVaryingParameters(pConfig,
+                          ignoreSections = [], 
+                          ignoreOptions = []):
     """
     Find varying variables in a config file.
     
@@ -402,7 +456,17 @@ def findVaryingParameters(pConfig):
     
     pConfig : NepidemiXConfigParser
        The settings as a NepidemiXConfigParser compatible object.
-    
+
+    ignoreSections : array_like
+       List of section names to exclude when working with congigurations.
+       Nothing in these sections will be expanded even if they contain ranges
+       but their values will still be moved to the result.
+
+    ignoreOptions : array_like
+       List of (section, option) pairs not to count.
+       These options will not be expanded even if they contain ranges
+       but their values will still be moved to the resulting list.    
+
     Returns
     -------
     
@@ -412,14 +476,18 @@ def findVaryingParameters(pConfig):
     """
     pd = collections.OrderedDict()
     for sec in pConfig.sections():
-        for opt in pConfig.options(sec):
-            val = pConfig.getrange(sec,opt)
-            if len(val) > 1:
-                pd[(sec,opt)] = val
+        if sec not in ignoreOptions:
+            for opt in pConfig.options(sec):
+                if (sec, opt) not in ignoreOptions:
+                    val = pConfig.getrange(sec,opt)
+                    if len(val) > 1:
+                        pd[(sec,opt)] = val
     return pd
                              
 
-def paramsPaths(projectDir, paramRangeList = None, confDirName=None):
+def paramsPaths(projectDir, paramRangeList = None, confDirName=None,
+                excludeSections  = [], excludeOptions = [],
+                ignoreSections = [], ignoreOptions = []):
     """
     Generator giving all parameters and paths in a project.
 
@@ -445,6 +513,24 @@ def paramsPaths(projectDir, paramRangeList = None, confDirName=None):
        the function assumes that this is an initialized project directory and
        attemtps to load the values from the ini file.
 
+    excludeSections : array_like
+       List of section names to exclude when working with congigurations.
+       I.e. their content won't be transferred to the result.
+
+    excludeOptions : array_like
+       List of (section, option) pairs of names to exclude. 
+       I.e. their content won't be transferred to the result.
+
+    ignoreSections : array_like
+       List of section names to exclude when working with congigurations.
+       Nothing in these sections will be expanded even if they contain ranges
+       but their values will still be moved to the result.
+
+    ignoreOptions : array_like
+       List of (section, option) pairs not to expand when working with
+       configuration.
+       These options will not be expanded even if they contain ranges
+       but their values will still be moved to the resulting list.
 
     Yields
     ------
@@ -474,7 +560,12 @@ def paramsPaths(projectDir, paramRangeList = None, confDirName=None):
 
     if paramRangeList == None:
         # Construct paramRangeList
-        paramRangeList, varOptList = buildParamRangeList(cp, ClusterSimulation.all_sections)
+        paramRangeList, varOptList = \
+            buildParamRangeList(cp,  
+                                excludeSections = excludeSections,
+                                excludeOptions = excludeOptions,
+                                ignoreSections = ignoreSections,
+                                ignoreOptions = ignoreOptions)
 
     n = 0
     for param in parameterexpander.combineParameters(paramRangeList):
@@ -512,7 +603,8 @@ def projectConfig(projectDir):
 
 
 
-def projectContent(projectDir):
+def projectContent(projectDir, excludeSections = [], excludeOptions = [],
+                   ignoreSections = [], ignoreOptions = []):
     """
     Generator giving the config for each individual parameter combination and
     the list of files in that specific configuration directory.
@@ -523,6 +615,26 @@ def projectContent(projectDir):
 
     projectDir : str
        Project directory path as string.
+    
+    excludeSections : array_like
+       List of section names to exclude when working with congigurations.
+       I.e. their content won't be transferred to the result.
+
+    excludeOptions : array_like
+       List of (section, option) pairs of names to exclude. 
+       I.e. their content won't be transferred to the result.
+
+    ignoreSections : array_like
+       List of section names to exclude when working with congigurations.
+       Nothing in these sections will be expanded even if they contain ranges
+       but their values will still be moved to the result.
+
+    ignoreOptions : array_like
+       List of (section, option) pairs not to expand when working with
+       configuration.
+       These options will not be expanded even if they contain ranges
+       but their values will still be moved to the resulting list.
+
   
     Yields
     ------
@@ -532,6 +644,7 @@ def projectContent(projectDir):
 
     fileList : list
        The list of all files.
+
 
 
     """
@@ -555,19 +668,26 @@ def projectContent(projectDir):
         confBaseName = 'config'
 
     # Construct paramRangeList
-    paramRangeList, varOptList = buildParamRangeList(cp, ClusterSimulation.all_sections)
+    paramRangeList, varOptList \
+        = buildParamRangeList(cp,  
+                              excludeSections = excludeSections,
+                              excludeOptions = excludeOptions,
+                              ignoreSections = ignoreSections,
+                              ignoreOptions = ignoreOptions)
 
     # Loop
-    for params, cpath in paramsPaths(projectDir, paramRangeList, confDirName):
+    for params, cpath in paramsPaths(projectDir, paramRangeList, confDirName, 
+                                     excludeSections = excludeSections, excludeOptions = excludeOptions, 
+                                     ignoreSections = ignoreSections, ignoreOptions = ignoreOptions):
         # File base name (from global config)
-        fileBaseName = cp.get(simulation.Simulation.CFG_SECTION_OUTPT,
-                              simulation.Simulation.CFG_PARAM_baseFileName)
+        fileBaseName = cp.get(Simulation.CFG_SECTION_OUTPT,
+                              Simulation.CFG_PARAM_baseFileName)
 
         # Read all configs.
         cpInd = None
         # Try reading the csv file.
         data = None            
-        wildFile = cpath+'/'+cp.get(simulation.Simulation.CFG_SECTION_OUTPT,
-                                    simulation.Simulation.CFG_PARAM_baseFileName)+'*'
+        wildFile = cpath+'/'+cp.get(Simulation.CFG_SECTION_OUTPT,
+                                    Simulation.CFG_PARAM_baseFileName)+'*'
         fileList = glob.glob(wildFile)
         yield params, fileList
