@@ -53,6 +53,12 @@ class NepidemiXConfigParser(object):
         # Expression matching a range <start>:<step>:<end>
         self.rangere = re.compile("(\s*{0}\s*\:\s*{0}\s*\:\s*{0}\s*)".format(numre)) 
 
+        # Expression matching a comma separated list of strings, allowing for
+        # non-splitting commas to occour in expressions enclosed in {}, (), 
+        # or []. Note not recursing so hierarchical encolsures using the same 
+        # char. will break it. Should be rewritten using proper parsing.
+        self.listre = re.compile(r"([^\{\}\(\)\[\],$]+|((\{[^\}]*\})|(\([^\)]*\))|(\[[^\]]*\])))+")
+
         self.sectionDict = collections.OrderedDict()
 
     def read(self, fileName):
@@ -96,7 +102,6 @@ class NepidemiXConfigParser(object):
                     if not self.sectionDict.has_key(currentSection):
                         self.sectionDict[currentSection] = []
                     currentOptionsList = self.sectionDict[currentSection]
- #                   logger.debug("[{0}]".format(currentSection))
                 else:
                     # Check so that we have a current section. 
                     # If not someone is writing options in the file without
@@ -554,8 +559,11 @@ class NepidemiXConfigParser(object):
             # In this case we should have a single value, or an comma-
             # separated list of data.
             # Create the list of data.
-            retval = numpy.array([n.strip() for n in rstring.split(',')],dtype=dtype)
-#        logger.debug("Created array: {0}".format(retval))
+            # From the regexp the first entry will hold the split without the comma.
+            retval = numpy.array([p[0].strip() \
+                                      for p in self.listre.findall(rstring)], 
+                                 dtype=dtype)
+#            retval = numpy.array([n.strip() for n in rstring.split(',')],dtype=dtype)
             
         return retval
 
