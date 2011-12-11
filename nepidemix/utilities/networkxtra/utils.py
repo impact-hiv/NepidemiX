@@ -102,13 +102,14 @@ def matchSetAttributes(vdict, vset):
 
     Parameters
     ----------
+
+    vdict :dict
+       A dictionary of key:value pairs.
     
     vset : set 
        Set of tuples (key, (val1,...,valn)). Key is a key, and the second
        value is a tuple of possible accept values for that key. 
 
-    vdict :dict
-       A dictionary of key:value pairs.
 
     Returns
     -------
@@ -127,15 +128,18 @@ def matchDictAttributes(vdict0, vdict1):
     """
     This is a matching function used in entity count.
     Check if the key-value pairs of vdict1 is contained in vdict0.
+    The values of vdict1 can be sets to denote a set of possible values for the
+    corresponding keys in vdict0.
 
     Parameters
     ----------
 
     vdict0 : dict
-       Reference dictionary
+       A dictionary of key:value pairs.
 
     vdict1 : dict
-       Query dictionary
+       Query dictionary. Either on the form key:value, or 
+       key:set(value1, value2 ... valueN)
 
     Returns
     -------
@@ -146,7 +150,7 @@ def matchDictAttributes(vdict0, vdict1):
 
     """
     for k,v in vdict1.iteritems():
-        if vdict0.has_key(k) == False or vdict0.get(k) != v:
+        if vdict0.has_key(k) == False or (vdict0.get(k) != v and vdict0.get(k) not in v):
             return False
     return True
 
@@ -183,7 +187,7 @@ def entityCountDict(iterator, attributeDict):
     """
     Count the number of nodes/edges having an attribute dictionary which
     contains all the keys given in the attributeDict, and where the dictionary
-    values for those keys matches the corresponding value in addributeDict.
+    values for those keys matches the corresponding value in attributeDict.
 
     That is, the nodes/edges can have keys not contained in attributeDict, 
     but not the other way around.
