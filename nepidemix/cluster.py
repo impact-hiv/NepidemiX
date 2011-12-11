@@ -161,9 +161,8 @@ class ClusterSimulation(object):
 
         # Ignore these options, allowing them to pass on, but do not expand them.
         # Done for parameter we know to be ranges meant for the simulation.
-        self.ignore_options = [ (Simulation.CFG_SECTION_OUTPT, \
-                                     Simulation.CFG_PARAM_save_state_count_mask)
-                               ]
+        self.ignore_options = []
+
         if settings != None:
             self.configure(settings)
     
