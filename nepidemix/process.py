@@ -355,7 +355,8 @@ class Process(object):
         Parameters
         ----------
         
-        node : networkx node, Structure: (<node id>, {<attribute name-value map>})
+        node : networkx node
+           Structure: (<node id>, {<attribute name-value map>})
 
         Returns
         -------
@@ -388,7 +389,8 @@ class Process(object):
         Parameters
         ----------
 
-        edge : networkx edge, Structure (<node id 1>, <node id 2>, <attribute dict>)
+        edge : networkx edge
+           Structure (<node id 1>, <node id 2>, <attribute dict>)
 
         Returns
         -------
@@ -400,8 +402,6 @@ class Process(object):
 
         """
         return None
-
-
 
 
 class ExplicitStateProcess(Process):
@@ -693,7 +693,7 @@ class ExplicitStateProcess(Process):
         # This is an explicit state process, so we can just return it.
         return edge[2].get(self.STATE_ATTR_NAME)
         
-
+    
 
 
 class AttributeStateProcess(Process):
@@ -1001,7 +1001,6 @@ class AttributeStateProcess(Process):
         """
         # This is an explicit state process, so we can just return it.
         return frozenset(edge[-1].iteritems())
-        
 
 
 class ScriptedProcess(AttributeStateProcess):
