@@ -263,7 +263,7 @@ class Simulation(object):
     |                            | the full program config, plus an Info     |
     |                            | section will be saved.                    |
     +----------------------------+-------------------------------------------+
-    | save_state_count            | Optional (default value true) switch     |
+    | save_state_count           | Optional (default value true) switch      |
     |                            | (on/off, true/false, yes/no, 1/0).        |            
     |                            | If this is true/yes/on, the network node  |
     |                            | states will be counted and saved as a csv |
@@ -272,18 +272,26 @@ class Simulation(object):
     |                            | support node updates. If not, nothing     |
     |                            | will be saved.                            |
     +----------------------------+-------------------------------------------+
-    | save_state_count_interval   | Optional (default value 1). Count nodes  |
+    | save_state_count_interval  | Optional (default value 1). Count nodes   |
     |                            | every <value> iterations. Value should be |
     |                            | an integer >= 1. Note, initial and final  |
     |                            | node state counts are always saved even   |
     |                            | if they are not covered by the interval.  |
     +----------------------------+-------------------------------------------+
-    | save_state_count_list       | Optional. List of node states to count.  |
-    |                            | If left out all states as specified by    |
-    |                            | the process will be counted.              |
-    |                            | Note that this option only is useful to   |
-    |                            | limit the states counted. It is up to the |
-    |                            | process to define which those states are. |
+    | save_state_influx          | Optional (default value true) switch      |
+    |                            | (on/off, true/false, yes/no, 1/0).        |            
+    |                            | If this is true/yes/on, the network node  |
+    |                            | states influx (num new nodes in state)    |
+    |                            | will be saved to a csv file.              |
+    |                            | Note: only valid if the current process   |
+    |                            | support node updates. If not, nothing     |
+    |                            | will be saved.                            |
+    +----------------------------+-------------------------------------------+
+    | save_state_influx_interval | Optional (default value 1). Integrate     |
+    |                            | influx over <value> iterations. Value     |
+    |                            | is integer >= 1. Note, initial and final  |
+    |                            | node state influx are always saved even   |
+    |                            | if they are not covered by the interval.  |
     +----------------------------+-------------------------------------------+
     | save_network_compress_file | Optional (default value true) switch      |
     |                            | (on/off, true/false, yes/no, 1/0).        |
@@ -348,12 +356,15 @@ class Simulation(object):
     CFG_PARAM_save_network_compress_file = "save_network_compress_file"
     CFG_PARAM_save_state_count = "save_state_count"
     CFG_PARAM_save_state_count_interval = "save_state_count_interval"
-
-
+    CFG_PARAM_save_state_influx = "save_state_influx"
+    CFG_PARAM_save_state_influx_interval = "save_state_influx_interval"
+    
     # Names of fields in the network graph dictionary.
     TIME_FIELD_NAME = "Time"
     STATE_COUNT_FIELD_NAME = "state_count"
     STATE_INFLUX_FIELD_NAME = "state_influx"
+
+    
 
     def __init__(self):
         """
@@ -391,7 +402,7 @@ class Simulation(object):
         self.stateSamples = {}
         
         self.stateSamples[self.STATE_COUNT_FIELD_NAME] = []
-
+        self.stateSamples[self.STATE_INFLUX_FIELD_NAME] = []
     
         # Add entry for time 0.
         for k in self.stateSamples:
@@ -400,13 +411,15 @@ class Simulation(object):
             # Insert time stamp.
             countDict[self.TIME_FIELD_NAME] = 0.0
             # Copy data.
-            countDict.update(dict([ (s,str(v)) for s,v in self.network.graph[k].iteritems()]))
+
+            countDict.update(dict([ (s,str(v)) for s,v in self.network.\
+                                        graph[k].iteritems()]))
 
             self.stateSamples[k].append(countDict)
 
 
-        logger.info("Initial node state sample vector: {0}".format(self.stateSamples[self.STATE_COUNT_FIELD_NAME]))
-
+        logger.info("Initial node state count vector: {0}".format(self.stateSamples[self.STATE_COUNT_FIELD_NAME]))
+        logger.info("Initial node state influx vector: {0}".format(self.stateSamples[self.STATE_INFLUX_FIELD_NAME]))
 
         readNetwork = self.network
         logger.info("Process will leave topology constant?: {0}".format(self.process.constantTopology))
@@ -414,7 +427,9 @@ class Simulation(object):
             writeNetwork = readNetwork.copy()
         else:
             writeNetwork = networkx.Graph()
-            writeNetwork.graph[self.STATE_COUNT_FIELD_NAME] = readNetwork.graph[self.STATE_COUNT_FIELD_NAME].copy()
+            for stk in self.stateSamples:
+                writeNetwork.graph[stk] = readNetwork.graph[stk].copy()
+
 
         for it in range(self.iterations):
             # Update nodes.
@@ -431,9 +446,11 @@ class Simulation(object):
                     newstate = self.process.deduceNodeState(nc)
 
                     if newstate != oldstate:
+                        # Update count
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
-
+                        # Update influx
+                        writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
 
                 
             # Update edges.
@@ -448,9 +465,11 @@ class Simulation(object):
                     newstate = self.process.deduceEdgeState(ne)
 
                     if newstate != oldstate:
+                        # Update count
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
-
+                        # Update influx
+                        writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
         
       
             if self.process.constantTopology == False or self.process.runNetworkUpdate == True:
@@ -482,6 +501,14 @@ class Simulation(object):
                     countDict.update(dict([ (s,str(v)) for s,v in self.network.graph[k].iteritems()]))
                     # Add to current list of samples.
                     self.stateSamples[k].append(countDict)
+                    # If we are working in the influx, make sure to start counting anew.
+                    if k == self.STATE_INFLUX_FIELD_NAME:
+                        for stk in writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME]:
+                            # Subtract the value from itself to reach zero, in this way
+                            # all linked counters will be set to zero.
+                            writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][stk] -=\
+                                int(writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][stk])
+                            
             # Check network saving. Same here as for states above:
             # look at iteration +1, as it is done after execution of the rules.
             if self.saveNetwork == True and ( \
@@ -518,7 +545,8 @@ class Simulation(object):
         
         self.includeFiles = settings.getrange(self.CFG_SECTION_SIM,
                                               self.CFG_PARAM_include_files,
-                                              default = [])
+                                              default = [],
+                                              add_if_not_existing = False)
             
         if len(self.includeFiles) > 0:
             logger.info("Files {0} will be included.".format(", ".join(self.includeFiles)))
@@ -559,36 +587,6 @@ class Simulation(object):
                 logger.info("Adding '{0}' to python path.".format(abspth))
                 sys.path.append(abspth)
 
-            self.saveStatesInterval = {}
-
-            self.saveStatesInterval[self.STATE_COUNT_FIELD_NAME] = \
-                settings.getint(self.CFG_SECTION_OUTPT,
-                                self.CFG_PARAM_save_state_count_interval, 
-                                default=1)
-                
-
-            self.saveStates = {}
-            
-            self.saveStates[self.STATE_COUNT_FIELD_NAME] = \
-                settings.getboolean(self.CFG_SECTION_OUTPT,
-                                    self.CFG_PARAM_save_state_count,
-                                    default=True)
-    
-
-
-
-            
-            # If there is no option to set a unique file name take it as true.
-            # If there is one we have to check if it is set to true.
-            # Then update name.
-            if (not settings.has_option(self.CFG_SECTION_OUTPT, 
-                                   self.CFG_PARAM_uniqueFileName)
-                ) or (settings.getboolean(self.CFG_SECTION_OUTPT, 
-                                          self.CFG_PARAM_uniqueFileName)
-                      ) ==  True:
-                self.baseFileName = self.baseFileName + '_'+\
-                    "-".join(("_".join(time.ctime().split())).split(':'))
-            logger.info("Base file name set to: '{0}'".format(self.baseFileName))
 
                 
         except NepidemiXBaseException as err:
@@ -623,6 +621,8 @@ class Simulation(object):
         self.network.graph[self.TIME_FIELD_NAME] = 0.0
         # Create a dictionary for the state counts.
         self.network.graph[self.STATE_COUNT_FIELD_NAME] = OrderedDict()
+        # Create a dictionary for the state influx.
+        self.network.graph[self.STATE_INFLUX_FIELD_NAME] = OrderedDict()
 
         logger.info("Created '{0}' network with {1} nodes." \
                        .format(nwork_name, len(self.network)))
@@ -662,6 +662,48 @@ class Simulation(object):
             # The network itself.
             # Right now it doesn't have a configuration section.
             self.process.initializeNetwork(self.network)
+
+
+        self.saveStatesInterval = {}
+
+        self.saveStatesInterval[self.STATE_COUNT_FIELD_NAME] = \
+            settings.getint(self.CFG_SECTION_OUTPT,
+                            self.CFG_PARAM_save_state_count_interval, 
+                            default=1)
+
+        self.saveStatesInterval[self.STATE_INFLUX_FIELD_NAME] = \
+            settings.getint(self.CFG_SECTION_OUTPT,
+                            self.CFG_PARAM_save_state_influx_interval, 
+                            default=1)
+
+
+        self.saveStates = {}
+
+        self.saveStates[self.STATE_COUNT_FIELD_NAME] = \
+            settings.getboolean(self.CFG_SECTION_OUTPT,
+                                self.CFG_PARAM_save_state_count,
+                                default=True)
+
+        self.saveStates[self.STATE_INFLUX_FIELD_NAME] = \
+            settings.getboolean(self.CFG_SECTION_OUTPT,
+                                self.CFG_PARAM_save_state_influx,
+                                default=True)
+
+
+
+
+        # If there is no option to set a unique file name take it as true.
+        # If there is one we have to check if it is set to true.
+        # Then update name.
+        if (not settings.has_option(self.CFG_SECTION_OUTPT, 
+                               self.CFG_PARAM_uniqueFileName)
+            ) or (settings.getboolean(self.CFG_SECTION_OUTPT, 
+                                      self.CFG_PARAM_uniqueFileName)
+                  ) ==  True:
+            self.baseFileName = self.baseFileName + '_'+\
+                "-".join(("_".join(time.ctime().split())).split(':'))
+        logger.info("Base file name set to: '{0}'".format(self.baseFileName))
+
 
         # Network save options
         self.saveNetwork = settings.getboolean(self.CFG_SECTION_OUTPT,
@@ -704,10 +746,10 @@ class Simulation(object):
                         try:
                             with open(stateDataFName, 'wb') as stateDataFP:
                                 stateDataWriter = csv.writer(stateDataFP)
-
+                                              
                                 # Keys are time stamp
                                 keys = [self.TIME_FIELD_NAME]
-                                # and all labels
+                                # and labels
                                 keys.extend(self.network.graph[sampleName].keys())
 
                                 # Write labels in first row
