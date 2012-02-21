@@ -513,8 +513,7 @@ class Simulation(object):
                 writeNetwork.clear()
             # Always update the graph for each sub dictionary.
             for k in self.stateSamples:
-
-                writeNetwork.graph[k] = readNetwork.graph[k].copy()
+                writeNetwork.graph[k] = copy.deepcopy(readNetwork.graph[k])
                 # Check if we should save node state this iteration.
                 # it +1 is checked as the 0th is always saved before the loop.
                 # Also always save the last result.
