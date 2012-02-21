@@ -43,6 +43,26 @@ class LinkedCounter(object):
         for l in listenerList:
             self.linkedCounters.append(l)
 
+    def set(self, value, broadcast = True):
+        """
+        Set the linked object to a value.
+        
+        Parameters
+        ----------
+        
+        value: int
+           The value.
+
+        broadcast: bool, optional
+           If true the value will be broadcast to all linked counters.
+
+        """
+        self.counter = value
+        if broadcast == True:
+            for c in self.linkedCounters:
+                c.counter = value
+        return self
+
     def __repr__(self):
         return "LinkedCounter({0}, [{1}])".format(self.counter, self.linkedCounters)
 
