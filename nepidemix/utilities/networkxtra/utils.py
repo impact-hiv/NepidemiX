@@ -128,8 +128,6 @@ def matchDictAttributes(vdict0, vdict1):
     """
     This is a matching function used in entity count.
     Check if the key-value pairs of vdict1 is contained in vdict0.
-    The values of vdict1 can be sets to denote a set of possible values for the
-    corresponding keys in vdict0.
 
     Parameters
     ----------
@@ -138,8 +136,7 @@ def matchDictAttributes(vdict0, vdict1):
        A dictionary of key:value pairs.
 
     vdict1 : dict
-       Query dictionary. Either on the form key:value, or 
-       key:set(value1, value2 ... valueN)
+       Query dictionary. Either on the form key:value .
 
     Returns
     -------
@@ -149,8 +146,9 @@ def matchDictAttributes(vdict0, vdict1):
       match. 
 
     """
+
     for k,v in vdict1.iteritems():
-        if vdict0.has_key(k) == False or (vdict0.get(k) != v and vdict0.get(k) not in v):
+        if vdict0.has_key(k) == False or vdict0.get(k) != v:
             return False
     return True
 
