@@ -281,14 +281,14 @@ class Simulation(object):
     | save_state_influx          | Optional (default value true) switch      |
     |                            | (on/off, true/false, yes/no, 1/0).        |            
     |                            | If this is true/yes/on, the network node  |
-    |                            | states influx (num new nodes in state)    |
-    |                            | will be saved to a csv file.              |
+    |                            | states influx (total num new nodes in     |
+    |                            | state) will be saved to a csv file.       |
     |                            | Note: only valid if the current process   |
     |                            | support node updates. If not, nothing     |
     |                            | will be saved.                            |
     +----------------------------+-------------------------------------------+
-    | save_state_influx_interval | Optional (default value 1). Integrate     |
-    |                            | influx over <value> iterations. Value     |
+    | save_state_influx_interval | Optional (default value 1). Save influx   |
+    |                            | everu <value> iteration. Value            |
     |                            | is integer >= 1. Note, initial and final  |
     |                            | node state influx are always saved even   |
     |                            | if they are not covered by the interval.  |
@@ -430,8 +430,8 @@ class Simulation(object):
             for stk in self.stateSamples:
                 writeNetwork.graph[stk] = readNetwork.graph[stk].copy()
 
-
         for it in range(self.iterations):
+
             # Update nodes.
             if self.process.constantTopology == False or self.process.runNodeUpdate == True:
                 # Go over all nodes.
@@ -446,9 +446,38 @@ class Simulation(object):
                     newstate = self.process.deduceNodeState(nc)
 
                     if newstate != oldstate:
+
+                        # Debug code belonging to 
+                        # own = int(writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate])
+                        # nwn = int(writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate])
+                        # orn = int(readNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate])
+                        # nrn = int(readNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate])
+                        
                         # Update count
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
+                        
+#                         if writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] == nwn or \
+#                                 writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] == own or \
+#                                 readNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] != nrn or \
+#                                 readNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] != orn:
+#                             logger.error("""Error in state counts! 
+# newstate: write original = {0}, write update = {1}
+# newstate: read original = {2}, read update = {3}
+# oldstate: write original = {4}, write update = {5}
+# oldstate: read original = {6}, read update = {7}
+
+# """.format(nwn,
+#            writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate],
+#            nrn,
+#            readNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate],
+#            own,
+#            writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate],
+#            orn,
+#            readNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate]))
+#                             exit(-1)
+
+
                         # Update influx
                         writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
 
@@ -484,8 +513,8 @@ class Simulation(object):
                 writeNetwork.clear()
             # Always update the graph for each sub dictionary.
             for k in self.stateSamples:
-                writeNetwork.graph[k] = readNetwork.graph[k].copy()
 
+                writeNetwork.graph[k] = readNetwork.graph[k].copy()
                 # Check if we should save node state this iteration.
                 # it +1 is checked as the 0th is always saved before the loop.
                 # Also always save the last result.
@@ -501,13 +530,7 @@ class Simulation(object):
                     countDict.update(dict([ (s,str(v)) for s,v in self.network.graph[k].iteritems()]))
                     # Add to current list of samples.
                     self.stateSamples[k].append(countDict)
-                    # If we are working in the influx, make sure to start counting anew.
-                    if k == self.STATE_INFLUX_FIELD_NAME:
-                        for stk in writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME]:
-                            # Subtract the value from itself to reach zero, in this way
-                            # all linked counters will be set to zero.
-                            writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][stk] -=\
-                                int(writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][stk])
+                                
                             
             # Check network saving. Same here as for states above:
             # look at iteration +1, as it is done after execution of the rules.
@@ -617,12 +640,13 @@ class Simulation(object):
         self.network = _import_and_execute(nwork_name, nwork_module,dparams)
         # Change the standard dictionary in the NetworkX graph to an ordered one.
         self.network.graph = OrderedDict(self.network.graph)
-        # Add an attribute for time.
-        self.network.graph[self.TIME_FIELD_NAME] = 0.0
-        # Create a dictionary for the state counts.
-        self.network.graph[self.STATE_COUNT_FIELD_NAME] = OrderedDict()
-        # Create a dictionary for the state influx.
-        self.network.graph[self.STATE_INFLUX_FIELD_NAME] = OrderedDict()
+
+        if self.network.graph.has_key(self.STATE_COUNT_FIELD_NAME) == False:
+            # Create a dictionary for the state counts.
+            self.network.graph[self.STATE_COUNT_FIELD_NAME] = OrderedDict()
+        if self.network.graph.has_key(self.STATE_INFLUX_FIELD_NAME) == False:
+            # Create a dictionary for the state influx.
+            self.network.graph[self.STATE_INFLUX_FIELD_NAME] = OrderedDict()
 
         logger.info("Created '{0}' network with {1} nodes." \
                        .format(nwork_name, len(self.network)))
@@ -639,6 +663,10 @@ class Simulation(object):
         # Check if init should be performed.
         if (not settings.has_option(self.CFG_SECTION_SIM, self.CFG_PARAM_network_init))\
                 or settings.getboolean(self.CFG_SECTION_SIM, self.CFG_PARAM_network_init):
+
+            # Add an attribute for time/set time to zero.
+            self.network.graph[self.TIME_FIELD_NAME] = 0.0
+
             # Nodes
             if settings.getboolean(self.CFG_SECTION_SIM, 
                                    self.CFG_PARAM_node_init, default = True):

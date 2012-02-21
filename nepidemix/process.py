@@ -1598,5 +1598,6 @@ class ScriptedProcess(AttributeStateProcess):
            Attribute dictionary matching a specific or partial mean field state.
 
         """
-        return self.__currentMeanField[frozenset(atts.iteritems())] / self.__currentNetworkSize
+        rv = self.__currentMeanField[frozenset(atts.iteritems())] / self.__currentNetworkSize
+        return rv
     
