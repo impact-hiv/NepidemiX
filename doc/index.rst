@@ -18,6 +18,7 @@ Contents:
    download_and_installation
    documentation
    tutorial
+   examples
    api
 
 Indices and tables
