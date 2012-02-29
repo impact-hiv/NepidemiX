@@ -35,14 +35,12 @@ If you want to get NepidemiX directly from the development repository or generat
 Download
 --------
 
-You can either download a release version of NepidemiX below or you can get the software directly from `our development repository on github <https://github.com/impact-hiv/NepidemiX>`_ .
-
 Releases
 ~~~~~~~~
 
 We release the software at certain stages of development, and try to document the changes between each, making sure that the documentation is up to date et c. You can find the latest release below.
 
-* NepidemiX 0.1 
+* `NepidemiX 0.2 <https://github.com/downloads/impact-hiv/NepidemiX/NepidemiX-0.2.tar.gz>`_ 
 
 Save the file on your system, unpack it and follow the Installation_ instructions below.
 
@@ -61,7 +59,7 @@ To clone a copy of the repository directly you can run the following::
 Installation
 ------------
 
-To install, open a terminal in your NepidemiX directory and run the setup script as::
+To install, unpack the archive file you downloaded, open a terminal in the resulting NepidemiX directory and run the setup script as::
 
    >> python setup.py install
 
