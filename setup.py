@@ -34,7 +34,7 @@ distname = 'NepidemiX'
 # Basic version
 version = '0.2'
 
-is_released = True
+is_released = False
 
 # The packages we provide.
 packages=['nepidemix', 
