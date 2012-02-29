@@ -137,7 +137,8 @@ class NepidemiXConfigParser(object):
         for sect, optList in self.sectionDict.iteritems():
             fileobject.write("[{0}]\n".format(sect))
             for opt,val in self.sectionDict[sect]:
-                fileobject.write("{0} = {1}\n".format(str(opt), str(val)))
+                if opt != None and len(str(opt)) > 0 and val != None and len(str(val)) > 0:
+                    fileobject.write("{0} = {1}\n".format(str(opt), str(val)))
             fileobject.write("\n")
 
     def sections(self):
