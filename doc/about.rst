@@ -36,3 +36,48 @@ network model for any problem of choice. NepidemiX allows for this through a hig
 configurable simulation class, and processes that may be configured using an easy to read
 script or implemented in the powerful Python programming language.
 
+.. raw:: html
+
+   <iframe src="http://player.vimeo.com/video/40097745" width="500" height="306" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen> align="right"</iframe>
+
+
+Support
+-------
+
+NepidemiX is developed with support from the following institutions and research networks
+
+   - `IMPACT-HIV <http://impact-hiv.irmacs.sfu.ca>`_
+   - `British Columbia Centre for Excellence in HIV/AIDS (BC-CfE) <http://www.cfenet.ubc.ca/>`_
+   - `Complex Systems Modelling Group (CSMG) <http://csmg.irmacs.sfu.ca/>`_
+   - `IRMACS <http://www.irmacs.sfu.ca/>`_
+
+Credits
+-------
+
+   **Programming**
+
+      *Lukas Ahrenberg <lukas(at)ahrenberg.se>*
+
+   **Testing**
+
+      *Sarah Kok*
+
+      *Ali Nadaf*
+
+
+Acknowledgments
+~~~~~~~~~~~~~~~
+
+   *Krisztina Vasarhelyi*
+
+   *Sandy Rutherford*
+
+   *Ralf Wittenberg*
+
+   *Bojan Ramadanovic*
+
+   *Julio Montaner*
+
+
+
+
