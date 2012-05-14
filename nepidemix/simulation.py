@@ -37,6 +37,8 @@ from nepidemix.exceptions import NepidemiXBaseException
 
 from nepidemix.utilities import NepidemiXConfigParser
 
+from nepidemix.version import full_version
+
 # Logging
 import logging
 
@@ -348,6 +350,7 @@ class Simulation(object):
     CFG_PARAM_execute_time = "sim_exec_time"
     CFG_PARAM_avgclust = "avg_clustering"
     CFG_PARAM_avgdegree = "avg_degree"
+    CFG_PARAM_nepidemix_version = "NepidemiX_version";
 
     # Network output parameters
     CFG_PARAM_save_network = "save_network"
@@ -628,7 +631,12 @@ class Simulation(object):
         self.process = _import_and_execute(process_name, process_module,dparams)
         logger.info("Created '{0}' object"
                     .format(process_name))
-    
+
+        # Set/update verision info field.
+        self.settings.set(self.CFG_SECTION_INFO, 
+                          self.CFG_PARAM_nepidemix_version,
+                          full_version)
+
         # Construct and initialize network.
         dparams = settings.evaluateSection(self.CFG_SECTION_NETWORK)
         nwork_name = settings.get(self.CFG_SECTION_SIM, 
