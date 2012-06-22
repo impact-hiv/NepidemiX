@@ -103,6 +103,11 @@ class ClusterSimulation(object):
     |              | (the ini file) and one optional (but recommended) being   |
     |              | the number of repetitions.                                |
     +--------------+-----------------------------------------------------------+
+    | l_options    | A comma separated list of options, all of these will be   |
+    |              | sent with an #PBS -l command. Optional.                   |
+    |              | E.g. l_options = mem=1gb, procs=1 will result in the two  |
+    |              | statements '#PBS -l mem=1gb' and '#PBS -l procs=1' .      |
+    +--------------+-----------------------------------------------------------+
 
     """
 
@@ -117,6 +122,7 @@ class ClusterSimulation(object):
     CFG_PARAM_queue = 'queue_name'
     CFG_PARAM_command = 'exec_command'
     CFG_PARAM_repeats = 'repetitions'
+    CFG_PARAM_pbslopts = 'l_options'
 
     # This section continue info about the run.
     CFG_SECTION_INFO= "Info"
@@ -288,6 +294,7 @@ class ClusterSimulation(object):
 
             # Write PBS file.
             with open(fname+'.pbs', 'w') as fp:
+                # Header, email and output.
                 fp.write("""
 #!/bin/bash
 #PBS -N {job_name}
@@ -297,17 +304,30 @@ class ClusterSimulation(object):
 #PBS -j oe
 #PBS -o {path_to_log}
 #PBS -e {path_to_elog}
-cd {work_dir}
-{command}
 """.format(job_name = self.projectName + "_{0}".format(ncalls),
            queue_string = queue_string,
            user_email = self.settings.get(self.CFG_SECTION_PBS,
                                           self.CFG_PARAM_email),
            path_to_log = fname+'.log',
-           path_to_elog = fname+'_error.log',
-           work_dir = cpath,
-           command = self.simprogram+" {0}.ini {1}".format(fname, self.reps)))
+           path_to_elog = fname+'_error.log'))
 
+                # Write -l options.
+                
+                if self.settings.has_option(self.CFG_SECTION_PBS,
+                                            self.CFG_PARAM_pbslopts) == True:
+                    for los in self.settings.\
+                            parseTuple(self.settings.get(self.CFG_SECTION_PBS,
+                                                         self.CFG_PARAM_pbslopts)):
+                        fp.write("#PBS -l {0}\n".format(los))
+
+
+                # Write the execution commands.
+                fp.write("""
+cd {work_dir}
+{command}
+""".format(work_dir = cpath,
+           command = self.simprogram+" {0}.ini {1}".format(fname, self.reps)))
+            
             # Add a command to submit the pbs file to our deployment script.
             deployScriptFp.write("qsub {0}.pbs; sleep 0.2\n".format(fname))
             ncalls = ncalls + 1
