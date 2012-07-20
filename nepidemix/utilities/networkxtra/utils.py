@@ -107,8 +107,8 @@ def matchSetAttributes(vdict, vset):
        A dictionary of key:value pairs.
     
     vset : set 
-       Set of tuples (key, (val1,...,valn)). Key is a key, and the second
-       value is a tuple of possible accept values for that key. 
+       Set of tuples (key, (val1,...,valn)), or (key, val1) Key is a key, and the second
+       value is a tuple of possible accept values for that key, or a single accept value. 
 
 
     Returns
@@ -120,7 +120,9 @@ def matchSetAttributes(vdict, vset):
 
     """
     for k,v in vset:
-        if vdict.has_key(k) == False or vdict[k] not in v:
+        if vdict.has_key(k) == False \
+                or vdict[k] not in v \
+                or ( isinstance(v,tuple) == False and vdict[k] != v):
             return False
     return True
 

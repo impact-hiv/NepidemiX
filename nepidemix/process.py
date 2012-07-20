@@ -789,11 +789,11 @@ class AttributeStateProcess(Process):
                                                    constantTopology)
 
         self.nodeAttributeDict = nodeAttributeDict
-        logger.debug("Node attributes: {0}".format(nodeAttributeDict))
+#        logger.debug("Node attributes: {0}".format(nodeAttributeDict))
         self.edgeAttributeDict = edgeAttributeDict
         self.meanFieldStates = meanFieldStates
 
-        logger.debug("Mean field states: {0}".format(self.meanFieldStates))
+#        logger.debug("Mean field states: {0}".format(self.meanFieldStates))
         
         self.evalNS = {}
 
@@ -805,7 +805,7 @@ class AttributeStateProcess(Process):
             self.evalNS[att] = att
             self.evalNS.update(dict(zip(vals,vals)))
 
-        logger.debug("Constructed evalNS = {0}".format(self.evalNS))
+#        logger.debug("Constructed evalNS = {0}".format(self.evalNS))
 
     def initializeNetwork(self, network, *args, **kwargs):
         """
@@ -885,7 +885,7 @@ class AttributeStateProcess(Process):
         # be exactly distributed or scaled.
         dealExact = kwargs.pop(self.CFG_PARAM_deal_exact, 'no')
         
-        logger.debug(kwargs)
+#        logger.debug(kwargs)
         nodeAtts = []
         for s,v in kwargs.iteritems():
             d = eval(s,self.evalNS)
@@ -1232,8 +1232,8 @@ class ScriptedProcess(AttributeStateProcess):
         for key,val in kwargs.iteritems():
             if key != self.CFG_PARAM_config_file:
                 self.modelParameters[key] = float(val)
-        logger.debug("Process parameters given: {0}"\
-                         .format(self.modelParameters))
+#        logger.debug("Process parameters given: {0}"\
+#                         .format(self.modelParameters))
 
         creader = nepx.utilities.NepidemiXConfigParser()
         try:
@@ -1274,8 +1274,8 @@ class ScriptedProcess(AttributeStateProcess):
         self.evalNS['MF'] = self.__MFlookup
         # Add the parameters.
         self.evalNS.update(self.modelParameters)
-        logger.info("Found rules: {0}".format(self.nodeRules))
-        logger.debug("Found node rule source states: {0}".format(self.nodeRules.keys()))
+#        logger.info("Found rules: {0}".format(self.nodeRules))
+#        logger.debug("Found node rule source states: {0}".format(self.nodeRules.keys()))
 
 
     def initializeNetwork(self, network, *args, **kwargs):
@@ -1333,11 +1333,16 @@ class ScriptedProcess(AttributeStateProcess):
                     # Add them to the network graph.
                     if network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME].has_key(k):
                         network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][k].linkedCounters.extend(l)
+#                        logger.debug("Leaf state {0} LINKED to partial state(s) {1}".format(k,l))
                     else:
                         network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][k] = LinkedCounter(nns, l)
+#                        logger.debug("Leaf state {0} CREATED. Initial count: {1}".format(k,nns))
                 # If we created a listener we need to set is value to the sum as well.
                 if len(allsets) >1:
-                    network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][oStateSet].counter = networkxtra.entityCountSet(network.nodes_iter(data=True), oStateSet)
+                    osnns = networkxtra.entityCountSet(network.nodes_iter(data=True), oStateSet)
+                    network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME][oStateSet].counter = osnns 
+#                    logger.debug("Partial state {0} CREATED, inital value set to {1}".format(oStateSet, osnns))
+
             # Extend sets.
             nmfl.extend(allsets)
 
