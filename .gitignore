@@ -24,3 +24,5 @@ doc/examples/tutoroal/output/*
 # Ignore version file.
 nepidemix/version.py
 
+# Ignore .bak files
+*.bak
