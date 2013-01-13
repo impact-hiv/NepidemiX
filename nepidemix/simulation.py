@@ -290,7 +290,7 @@ class Simulation(object):
     |                            | will be saved.                            |
     +----------------------------+-------------------------------------------+
     | save_state_influx_interval | Optional (default value 1). Save influx   |
-    |                            | everu <value> iteration. Value            |
+    |                            | every <value> iteration. Value            |
     |                            | is integer >= 1. Note, initial and final  |
     |                            | node state influx are always saved even   |
     |                            | if they are not covered by the interval.  |
