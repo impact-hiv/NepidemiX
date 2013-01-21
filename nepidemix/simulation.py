@@ -300,7 +300,17 @@ class Simulation(object):
     |                            | Denotes if the saved network files should |
     |                            | be bz2 compressed.                        |
     +----------------------------+-------------------------------------------+
-
+    | save_state_transition_cnt  | Optional (default value false) switch     |
+    |                            | (on/off true/false, yes/no, 1/0).         |
+    |                            | If set to true a csv file with saving the |
+    |                            | count of every possibly triggered         |
+    |                            | transition in every time step.            |
+    |                            | The file format is time in first column,  |
+    |                            | old state in second column, and number    |
+    |                            | of transitions to destination state in    |
+    |                            | the following columns. Destination states |
+    |                            | are given by the first row.               |
+    +----------------------------+-------------------------------------------+
 
     +----------------------------+-------------------------------------------+
     |                        Logging section options                         |
@@ -361,7 +371,8 @@ class Simulation(object):
     CFG_PARAM_save_state_count_interval = "save_state_count_interval"
     CFG_PARAM_save_state_influx = "save_state_influx"
     CFG_PARAM_save_state_influx_interval = "save_state_influx_interval"
-    
+    CFG_PARAM_save_node_rule_transition_count = "save_state_transition_cnt"
+
     # Names of fields in the network graph dictionary.
     TIME_FIELD_NAME = "Time"
     STATE_COUNT_FIELD_NAME = "state_count"
@@ -420,6 +431,8 @@ class Simulation(object):
 
             self.stateSamples[k].append(countDict)
 
+        # Transition counts should be saved.
+        self.nodeRuleTransCnt = [(0.0,{})]
 
         logger.info("Initial node state count vector: {0}".format(self.stateSamples[self.STATE_COUNT_FIELD_NAME]))
         logger.info("Initial node state influx vector: {0}".format(self.stateSamples[self.STATE_INFLUX_FIELD_NAME]))
@@ -434,7 +447,8 @@ class Simulation(object):
                 writeNetwork.graph[stk] = readNetwork.graph[stk].copy()
 
         for it in range(self.iterations):
-
+            # Add a node transition count array for this iteration (update timestamp and copy data array).
+            self.nodeRuleTransCnt.append((self.nodeRuleTransCnt[-1][0] + self.dt, {}))
             # Update nodes.
             if self.process.constantTopology == False or self.process.runNodeUpdate == True:
                 # Go over all nodes.
@@ -483,8 +497,11 @@ class Simulation(object):
 
                         # Update influx
                         writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
+                        # Update node rule trigger count.
+                        self.nodeRuleTransCnt[-1][1].setdefault(oldstate, {})
+                        self.nodeRuleTransCnt[-1][1][oldstate].setdefault(newstate, 0)
+                        self.nodeRuleTransCnt[-1][1][oldstate][newstate] += 1
 
-                
             # Update edges.
             if self.process.constantTopology == False or self.process.runEdgeUpdate == True:
                 for e in readNetwork.edges_iter(data = True):
@@ -725,7 +742,10 @@ class Simulation(object):
                                 default=True)
 
 
-
+        self.saveNodeRuleTransitionCount = \
+            settings.getboolean(self.CFG_SECTION_OUTPT,
+                                self.CFG_PARAM_save_node_rule_transition_count,
+                                default = False)
 
         # If there is no option to set a unique file name take it as true.
         # If there is one we have to check if it is set to true.
@@ -796,6 +816,33 @@ class Simulation(object):
                             logger.error("Could not open file '{0}' for writing!"\
                                              .format(stateDataFName))
 
+        if self.saveNodeRuleTransitionCount == True:
+            nodeRTFName = os.path.join(self.outputDir,self.baseFileName+"_nodeTrans.csv")
+            logger.info("Saving Node Transition Counts to file {0}".format(nodeRTFName))
+            try:
+                with open(nodeRTFName, 'wb') as nodeRTFP:
+                    nodeRTDataWriter = csv.writer(nodeRTFP)
+                    # Compute state matrix dimensions and keys.
+                    globOldStates = set()
+                    globNewStates = set()
+                    for ts, nRTData in self.nodeRuleTransCnt:
+                        globOldStates.update(nRTData.keys())
+                        for oldState, tCounts in nRTData.iteritems():
+                            globNewStates.update(tCounts.keys())
+                    csvrw = [self.TIME_FIELD_NAME, "New (col) / Old (row)"]
+                    csvrw.extend(globNewStates)
+#                    logger.debug(csvrw)
+                    nodeRTDataWriter.writerow(csvrw)
+                    # Go through the data again in the order given by the sets and save a full matrix.
+                    for ts, nRTData in self.nodeRuleTransCnt:
+                        # Update state matrix
+                        for oldState in globOldStates:
+                            rw = [ts,oldState]
+                            rw.extend([ nRTData.get(oldState,{}).get(newState,0) for newState in globNewStates ])
+                            nodeRTDataWriter.writerow(rw)
+            except IOError:
+                logger.error("Could not open or write to file '{0}'!".format(nodeRTFName))
+                
         if self.save_config == True:
             if self.settings == None:
                 logger.error("No settings to save exists.")
