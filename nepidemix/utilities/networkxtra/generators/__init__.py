@@ -17,7 +17,9 @@ from albert_barabasi_physrevlett import albert_barabasi_physrevlett_rigid
 
 from powerlaw_degree_sequence import powerlaw_degree_sequence
 
+from toivonen import *
+
 __all__.append('albert_barabasi_physrevlett_quick')
 __all__.append('albert_barabasi_physrevlett_rigid')
 __all__.append('powerlaw_degree_sequence')
-
+__all__.extend(toivonen.__all__)

@@ -45,6 +45,13 @@ def toivonen_standard(N_0, N, k):
        Maximum number of secondary links.
        The number of secondary neighbors to link to in each step is picked
        from the uniform distribution U[0,k] (inclusive).
+
+    Returns
+    -------
+
+    G : networkx.Graph
+       The resulting graph.
+
     """
 
     # Check arguments
@@ -74,7 +81,9 @@ def toivonen_standard(N_0, N, k):
     # Create a uniform distribution with k+1 members.
     m_s = zip(range(0,k+1),[1.0/(k+1)]*(k+1))
     
-    return generalized_toivonen(graph, N, m_r, m_s)
+    G,mr_exp,ms_exp,mr_avg,ms_avg = generalized_toivonen(graph, N, m_r, m_s)
+
+    return G
 
 def generalized_toivonen(graph, target_size, mr_distribution, ms_distribution):
     """
@@ -113,6 +122,24 @@ def generalized_toivonen(graph, target_size, mr_distribution, ms_distribution):
        This would be encoded as 
        [(0, 1.0/4.0), (1, 1.0/4.0), (2, 1.0/4.0), (3, 1.0/4.0)].
        The expected value corresponds to $m_s$ in the paper.
+
+    Returns
+    -------
+
+    G : networkx.Graph
+       The resulting graph.
+
+    mr_exp : float
+       The expected value of $m_r$ from the paper.
+
+    ms_exp : float
+       The expected value of $m_s$ from the paper.
+
+    mr_avg : float
+       The mean value of $m_r$ measured from the generated graph.
+
+    ms_avg: float
+       The mean value of $m_s$ measured from the generated graph.
     """
     
     # Checks
