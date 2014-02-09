@@ -140,3 +140,6 @@ Holme_and_Kim_powerlaw = NetworkGenerator(nx.powerlaw_cluster_graph,
 
 powerlaw_degree_sequence = NetworkGenerator(powerlaw_degree_sequence,
                                             {"n":int, "a":float}).create
+
+toivonen = NetworkGenerator(toivonen_standard, 
+                            {"N_0":int, "N":int, "k":int}).create
