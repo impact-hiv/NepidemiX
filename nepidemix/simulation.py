@@ -423,7 +423,7 @@ class Simulation(object):
             # Create dictionary.
             countDict = {}
             # Insert time stamp.
-            countDict[self.TIME_FIELD_NAME] = 0.0
+            countDict[self.TIME_FIELD_NAME] = self.network.graph.get(self.TIME_FIELD_NAME,0.0)
             # Copy data.
 
             countDict.update(dict([ (s,str(v)) for s,v in self.network.\
@@ -687,10 +687,14 @@ class Simulation(object):
         # Check if init should be performed.
         if (not settings.has_option(self.CFG_SECTION_SIM, self.CFG_PARAM_network_init))\
                 or settings.getboolean(self.CFG_SECTION_SIM, self.CFG_PARAM_network_init):
-
+            logger.info("Performing network setup.")
             # Add an attribute for time/set time to zero.
-            self.network.graph[self.TIME_FIELD_NAME] = 0.0
+            # If graph does not already have such a field.
+            if self.network.graph.has_key(self.TIME_FIELD_NAME) == False:
+                self.network.graph[self.TIME_FIELD_NAME] = 0.0
 
+            logger.debug("Time field after init: {0}".format(self.network.graph[self.TIME_FIELD_NAME]))
+            
             # Nodes
             if settings.getboolean(self.CFG_SECTION_SIM, 
                                    self.CFG_PARAM_node_init, default = True):
