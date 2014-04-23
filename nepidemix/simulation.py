@@ -301,7 +301,7 @@ class Simulation(object):
     |                            | be bz2 compressed.                        |
     +----------------------------+-------------------------------------------+
     | save_state_transition_cnt  | Optional (default value false) switch     |
-    |                            | (on/off true/false, yes/no, 1/0).         |
+    |                            | (on/off, true/false, yes/no, 1/0).        |
     |                            | If set to true a csv file with saving the |
     |                            | count of every possibly triggered         |
     |                            | transition in every time step.            |
@@ -310,6 +310,13 @@ class Simulation(object):
     |                            | of transitions to destination state in    |
     |                            | the following columns. Destination states |
     |                            | are given by the first row.               |
+    +----------------------------+-------------------------------------------+
+    | print_progress_bar         | Optional (default value true) switch      |
+    |                            | (on/off, true/false, yes/no, 1/0).        |
+    |                            | If set to true, and the number of         |
+    |                            | iterations is greater than 100, a         |
+    |                            | progress indicator is printed while the   |
+    |                            | simulation is running.                    |
     +----------------------------+-------------------------------------------+
 
     +----------------------------+-------------------------------------------+
@@ -372,6 +379,7 @@ class Simulation(object):
     CFG_PARAM_save_state_influx = "save_state_influx"
     CFG_PARAM_save_state_influx_interval = "save_state_influx_interval"
     CFG_PARAM_save_node_rule_transition_count = "save_state_transition_cnt"
+    CFG_PARAM_print_progress = "print_progress_bar"
 
     # Names of fields in the network graph dictionary.
     TIME_FIELD_NAME = "Time"
@@ -558,6 +566,17 @@ class Simulation(object):
                       and (it+1)%(self.saveNetworkInterval) == 0 )\
                     or it == (self.iterations-1) ):
                 self._saveNetwork(number= (it+1))
+            # Print progress
+            if self.printProgress:
+                if it % int(self.iterations * 0.20) == 0:
+                    sys.stdout.write("[{0}%]".format(int(it*100.0/self.iterations)))
+                    sys.stdout.flush()
+                elif it % int(self.iterations * 0.025) == 0:
+                    sys.stdout.write("=")
+                    sys.stdout.flush()
+        # Print 100 % when done
+        if self.printProgress:
+            sys.stdout.write("[100%]\n")
         
         logger.info("Simulation done.")
         endTime = time.time()
@@ -781,6 +800,14 @@ class Simulation(object):
             settings.getboolean(self.CFG_SECTION_OUTPT,
                                 self.CFG_PARAM_save_network_compress_file,
                                 default = True)
+    
+        # Print progress bar if turned on and the number of iterations 
+        # are greater than 100.
+        self.printProgress = \
+            settings.getboolean(self.CFG_SECTION_OUTPT, 
+                                self.CFG_PARAM_print_progress,
+                                default = True) \
+                                and (self.iterations > 100)
 
             
       
