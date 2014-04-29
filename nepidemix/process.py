@@ -39,7 +39,8 @@ import logging
 # Set up Logging
 logger = logging.getLogger(__name__)
 
-__all__ = ['Process', 'AttributeStateProcess', 'ExplicitStateProcess', 'ScriptedProcess']
+__all__ = ['Process', 'AttributeStateProcess', 'ExplicitStateProcess', 
+           'ScriptedProcess', 'ScriptedTimedProcess']
 
 class Process(object):
     """
@@ -1266,12 +1267,13 @@ class ScriptedProcess(AttributeStateProcess):
                      constantTopology = True)
         
         # Create rule mappings.
-        self.nodeRules = self.__createRuleDict([(creader.parseMapping(s),r) for s,r in nodeRuleList], self.nodeAttributeDict)
-        self.edgeRules = self.__createRuleDict([(creader.parseMapping(s),r) for s,r in edgeRuleList], self.edgeAttributeDict)
+        self.nodeRules = self._createRuleDict([(creader.parseMapping(s),r) for s,r in nodeRuleList], self.nodeAttributeDict)
+        self.edgeRules = self._createRuleDict([(creader.parseMapping(s),r) for s,r in edgeRuleList], self.edgeAttributeDict)
 
         # Add the functions to the namespace dictionary.
-        self.evalNS['NN'] = self.__NNlookup
-        self.evalNS['MF'] = self.__MFlookup
+        self.evalNS['NN'] = self._NNlookup
+        self.evalNS['MF'] = self._MFlookup
+
         # Add the parameters.
         self.evalNS.update(self.modelParameters)
 #        logger.info("Found rules: {0}".format(self.nodeRules))
@@ -1316,7 +1318,7 @@ class ScriptedProcess(AttributeStateProcess):
         for s in self.meanFieldStates:
             
             res = eval(s, self.evalNS)
-            oStateSet, allsets  = self.__createAllPossibleSets(res, self.nodeAttributeDict)
+            oStateSet, allsets  = self._createAllPossibleSets(res, self.nodeAttributeDict)
             # List for linked counters
             nsum = 0
             l = []
@@ -1367,9 +1369,9 @@ class ScriptedProcess(AttributeStateProcess):
 
         self.meanFieldStates = nmfl
 
-        self.__currentMeanField = network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
+        self._currentMeanField = network.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
         # As we have constant topology.
-        self.__currentNetworkSize = float(network.number_of_nodes())
+        self._currentNetworkSize = float(network.number_of_nodes())
 
         # # Set the influx of all mean field states to zero.
         # # Do it for every counted state, as this should be compltet after the treatment above.
@@ -1380,7 +1382,7 @@ class ScriptedProcess(AttributeStateProcess):
 
 
 
-    def __createRuleDict(self, ruleList, referenceDict):
+    def _createRuleDict(self, ruleList, referenceDict):
         """
         Given a set of rules as strings this method create a list of 
         dictionaries on with key value pairs as
@@ -1415,7 +1417,7 @@ class ScriptedProcess(AttributeStateProcess):
             
             fromState = eval(mpair[0], self.evalNS)
             # Get all possible matching states.
-            oStateSet, fromStateList = self.__createAllPossibleSets(fromState, referenceDict)
+            oStateSet, fromStateList = self._createAllPossibleSets(fromState, referenceDict)
             toState = eval(mpair[1], self.evalNS)
             # Create rule-code.
             rCode = compile(rule,"<string: '{0}'>".format(rule),mode='eval')
@@ -1428,7 +1430,7 @@ class ScriptedProcess(AttributeStateProcess):
 
         return tmpRules
 
-    def __createAllPossibleSets(self, attDict, referenceDict):
+    def _createAllPossibleSets(self, attDict, referenceDict):
         """
         From an attribute dictionary that may or may not be a full
         state, create all possible full states as a list of dictionaries.
@@ -1520,14 +1522,14 @@ class ScriptedProcess(AttributeStateProcess):
         Process : Superclass
 
         """
-        # For the sake of MF make sure that __currentMeanField always points
+        # For the sake of MF make sure that _currentMeanField always points
         # to the current srcNetwork.graph.
-        self.__currentMeanField = srcNetwork.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
+        self._currentMeanField = srcNetwork.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
 
         # Create a nearest neighbor generaterator.
-        self.__currentNNIter = [ n for n in networkxtra.neighbors_data_iter(srcNetwork, node[0])]
+        self._currentNNIter = [ n for n in networkxtra.neighbors_data_iter(srcNetwork, node[0])]
         # And the nearest adj matrix.
-        self.__currentAdj = srcNetwork.adj[node[0]]
+        self._currentAdj = srcNetwork.adj[node[0]]
         # Create random event.
         eventp = numpy.random.random_sample()
         
@@ -1552,7 +1554,7 @@ class ScriptedProcess(AttributeStateProcess):
                 break
         return node
 
-    def __NNlookup(self, nodeAtts, givenEdgeAtts = None):
+    def _NNlookup(self, nodeAtts, givenEdgeAtts = None):
         """
         Internal function that is mapped to the symbol 'NN' for use in the process definition
         string. Thus
@@ -1582,14 +1584,14 @@ class ScriptedProcess(AttributeStateProcess):
         
         """
         if givenEdgeAtts == None:
-            return networkxtra.entityCountDict(self.__currentNNIter, nodeAtts)
+            return networkxtra.entityCountDict(self._currentNNIter, nodeAtts)
         else:
-            r =  networkxtra.entityCountDict([n for n in self.__currentNNIter if networkxtra.matchDictAttributes(self.__currentAdj[n[0]], givenEdgeAtts)], nodeAtts)
+            r =  networkxtra.entityCountDict([n for n in self._currentNNIter if networkxtra.matchDictAttributes(self._currentAdj[n[0]], givenEdgeAtts)], nodeAtts)
 
             return r
         
 
-    def __MFlookup(self, atts):
+    def _MFlookup(self, atts):
         """
         Internal function that is mapped to the symbol 'MF' for use in the process definition
         string. MF(dict) give the mean field of nodes on the network in state (if a partial state
@@ -1603,6 +1605,291 @@ class ScriptedProcess(AttributeStateProcess):
            Attribute dictionary matching a specific or partial mean field state.
 
         """
-        rv = self.__currentMeanField[frozenset(atts.iteritems())] / self.__currentNetworkSize
+        rv = self._currentMeanField[frozenset(atts.iteritems())] / self._currentNetworkSize
         return rv
+
     
+class ScriptedTimedProcess(ScriptedProcess):
+    """
+    A ScriptedTimedProcess behaves like a `ScriptedProcess` but time spent in 
+    specific states can be queried.
+
+    This process is configured just like `ScriptedProcess`, however it records 
+    the global time of value changes to the state space attributes, and give 
+    access to these through the function T0(...) and T(...).
+
+    - T0( state ) gives the time stamp when the state happened. 'state' should
+      be given on the standard dictionary form and be either a full or partial 
+      state. It will give the point closest in time (the maximum) when the
+      specified attributes got the specified key values.
+
+    - T( state ) gives the time the node has spent in the specified state.
+      'state' should be given on the standard dictionary form and be either a 
+      full or partial state. This function will give the shortest time any of
+      the specified attributes has spent in their corresponding key state.
+
+    Note that as such these functions do not return an error if you happen to
+    ask for time for a state that the node is not in (or that does not exist), 
+    it simply gives you a time of zero spent in the state (or the current time 
+    stamp for T0(...) ).
+
+    Examples
+    --------
+
+    *Weibull distributed failure rate*
+    Assume you have the attribute 'working' that can take on the values of
+    'yes' or 'no'. A Weibull distributed failure rate would be encoded as
+    
+       {working : yes} -> {working : no} = k/l * (T({status:yes}) / l) ** (k-1.0)
+
+    where k,l are parameters (shape and scale), T({status:yes}) gives the time
+    with the 'working' attribute set to 'yes'. Note that as this rule is valid
+    for nodes in this state, we know that T will always return a sensible value.
+    The operator '**' is the power operator.
+
+    """
+    def __init__(self, **kwargs):
+        """
+        Reads process configuration from file and initializes process.
+        
+        See Also
+        --------
+        ScriptedProcess : Superclass
+        """
+        super(ScriptedTimedProcess, self).__init__(**kwargs)
+        self.evalNS['T0'] = self._T0
+        self.evalNS['T'] = self._T
+        self._currentTime = None
+        self._currentState = None
+
+    def initializeNetwork(self, network, *args, **kwargs):
+        """
+        Initialize the mean field states on the network.
+        
+        See Also
+        --------
+        ScriptedProcess : Superclass
+        """
+
+        # Use the parent class method
+        netw = super(ScriptedTimedProcess, self).initializeNetwork(network, *args, **kwargs)
+        # If there are no time stamps, create them and set all to current network time.
+        
+        # Nodes
+        if len(self.nodeRules) > 0:
+            self._mapToTSS(network.nodes_iter(data=True), network.graph[nepx.Simulation.TIME_FIELD_NAME])
+
+        if len(self.edgeRules) > 0:
+            self._mapToTSS(network.edges_iter(data=True), network.graph[nepx.Simulation.TIME_FIELD_NAME])
+
+    def nodeUpdateRule(self, node, srcNetwork, dt):
+        """
+        Perform local node changes.
+     
+        When called by Simulation this method will execute the matching rules 
+        for the current node in the same order they were given in the 
+        configuration file and, by some probability, follow it through; 
+        making changes to its state accordingly. 
+        As soon as one rule is matched the state is updated and no further 
+        rules are tested.
+        If no rules matched of were triggered then the state remains unchanged.
+
+        Parameters
+        ----------
+        
+        node : networkx node, Structure: (<node id>, {<attribute name-value map>})
+           This is a copy of the current node and the target of any changes.
+           
+        srcNetwork : networkx.Graph
+           A networkX graph, with the original nodes. Will remain unchanged.
+        
+        dt : float
+           Time differential (float) as a fraction of time unit (since last 
+           update).
+        
+        Returns
+        -------
+
+        node : networkx node
+           `node` with changes
+
+        See Also
+        --------
+        ScriptedProcess : Superclass
+        Process : Superclass
+        
+        """
+    
+        # This re-implements a lot of the functionality in ScriptedProcess::nodeUpdateRule which is a bit
+        # of a shame.
+
+        # For the sake of MF make sure that _currentMeanField always points
+        # to the current srcNetwork.graph.
+        self._currentMeanField = srcNetwork.graph[nepx.simulation.Simulation.STATE_COUNT_FIELD_NAME]
+        
+
+        # Grab current time, the network is from the previous iteration
+        self._currentTime = srcNetwork.graph[nepx.Simulation.TIME_FIELD_NAME]
+        # Take current node state
+        self._currentState = node[-1]
+        # Create a nearest neighbor generaterator.
+        self._currentNNIter = [ n for n in networkxtra.neighbors_data_iter(srcNetwork, node[0])]
+        
+
+        # And the nearest adj matrix.
+        self._currentAdj = srcNetwork.adj[node[0]]
+        # Create random event.
+        eventp = numpy.random.random_sample()
+        
+        # As we may check a number of possible destination
+        # states the probability of each sequential one
+        # must be going up given that we did not go into
+        # the previous one. This is the accumulated probab.
+        # that we test the event against.
+        prob = 0
+        # Evaluate go over the edges in the rule graph.
+        # Linear lookup of the rules.
+        # First look up a matching rule. Most general match first.
+        done = False
+        rList = self.nodeRules.get(frozenset(node[-1].iteritems()), [])
+        for dSt, rule in rList:
+            # Update probability by the evaluated rule code object.
+            prob += eval(rule, self.evalNS) * dt 
+            # Check if this is the event that is happening.
+            if eventp < prob:
+                node[-1].update(dSt)
+                # Note that a self-loop rule here will lead to a reset of that
+                # attribute timer.
+                for chAtt in dSt.keys():
+                    node[-1][chAtt] = _TimedState(node[-1][chAtt], 
+                                                  self._currentTime
+                                                  )
+                break
+        return node
+
+    def _mapToTSS(self,featureIterator, time):
+        """
+        Map attribute keys from str to `_TimedState` objects.
+        
+        Go though all nodes/edges pointed to by featureIterator and
+        (if the attribute values are strings) set them to _TimedState
+        objects with time 'time'.
+
+        Parameters
+        ----------
+        
+        featureIterator : iterator
+           Node or Edge iterator.
+
+        time : float
+           Time to initialize new _TimedState objects to.
+
+        """
+        for feature in featureIterator:
+            for k in feature[-1].keys():
+                if type(feature[-1][k]) is str and \
+                        not hasattr(feature[-1][k], "attrTimeStamp"):
+                    feature[-1][k] = _TimedState(feature[-1][k], time)
+
+    def _T0(self, atts):
+        """
+        Compute the time stamp closest in time that the node/edge has spent in
+        the given state, or the current time if the node/edge is not in the 
+        specified state.
+
+        Parameters
+        ----------
+
+        atts : dictionary
+           attrbute - value pairs of the requested state
+
+        Returns
+        -------
+
+        The greatest time stamp of the (partial) state
+        """
+        return numpy.max([self._currentState[k].time \
+                              if self._currentState[k] == atts[k] \
+                              else self._currentTime \
+                              for k in iter(atts)])
+
+    def _T(self, atts):
+        """
+        Compute the time spent in the specified (partial) state.
+
+        Parameters
+        ----------
+        
+        atts : dictionary
+           Attribute - value pairs of the requested state
+
+        Returns
+        -------
+
+        The shortest time spent in the state given state combination, or 0 if
+        the node/edge is not in this state.
+        """
+        return self._currentTime - self._T0(atts)
+
+# Inherit from str, add a time field as a meta field.
+# Not very pretty.
+class _TimedState(object):
+    """
+    These are timed string attributes as used by `ScriptedTimedProcess`.
+    
+    Basically treated as a string for all purposes except that it also has
+    a time state.
+
+    Note: Ought to be nested inside `ScriptedTimedProcess` but this causes
+    problems with pickling so right now defined as a protected class at
+    the module level.
+    """
+    def __init__(self, value, time):
+        self.value = value
+        self.time = time
+    
+    def __hash__(self):
+        return self.value.__hash__()
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__eq__(other)
+
+    def __le__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__eq__(other)
+
+    def __lt__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__lt__(other)
+
+    def __ne__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__ne__(other)
+
+    def __gt__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__gt__(other)
+
+    def __ge__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__ge__(other)
+
+    def __repr__(self):
+        return self.value.__repr__()
+
+    def __str__(self):
+        return self.value.__str__()
+
+    def __cmp__(self, other):
+        if type(other) is type(self):
+            other = self.value
+        return self.value.__cmp__(other)
+
+
