@@ -281,7 +281,11 @@ class NepidemiXConfigParser(object):
                 raise NepidemiXBaseException(section)
             else:
                 self.sectionDict[section] = []
-
+        # Remove old instance(s) of option
+        for (opt,val) in self.sectionDict[section]:
+            if opt == option:
+                self.sectionDict[section].remove((opt,val))
+        # Add new
         self.sectionDict[section].append((option,value))
 
 
