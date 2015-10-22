@@ -26,7 +26,8 @@ import networkx
 import copy
 import os
 from collections import OrderedDict
-
+import sqlite3
+import pickle
 
 # Local imports
 
@@ -265,6 +266,20 @@ class Simulation(object):
     |                            | the full program config, plus an Info     |
     |                            | section will be saved.                    |
     +----------------------------+-------------------------------------------+
+    | db_name                    | Optional (default value dependent on      |
+    |                            | options base_name and unique).            |
+    |                            | If specified this file name will be used  |
+    |                            | as the sqlite3 database name for output.  |
+    |                            | db_name overrides options base_name and   |
+    |                            | unique. If db_name does not contain an    |
+    |                            | absolute path output_dir is prefixed.     |
+    |                            | If the database file does not exist it is |
+    |                            | created.                                  |
+    |                            | If the database exists and is compatible  |
+    |                            | with the current simulation it is         |
+    |                            | appended to. If not an error is           |
+    |                            | generated.                                |
+    +----------------------------+-------------------------------------------+
     | save_state_count           | Optional (default value true) switch      |
     |                            | (on/off, true/false, yes/no, 1/0).        |            
     |                            | If this is true/yes/on, the network node  |
@@ -380,13 +395,16 @@ class Simulation(object):
     CFG_PARAM_save_state_influx_interval = "save_state_influx_interval"
     CFG_PARAM_save_node_rule_transition_count = "save_state_transition_cnt"
     CFG_PARAM_print_progress = "print_progress_bar"
+    CFG_PARAM_db_name = "db_name"
 
     # Names of fields in the network graph dictionary.
     TIME_FIELD_NAME = "Time"
     STATE_COUNT_FIELD_NAME = "state_count"
     STATE_INFLUX_FIELD_NAME = "state_influx"
 
-    
+    # Names of tables in the output database.
+    DB_SIMULATION_TABLE_NAME = "simulation"
+    DB_NODE_EVENT_TABLE_NAME = "node_event"
 
     def __init__(self):
         """
@@ -809,8 +827,13 @@ class Simulation(object):
                                 default = True) \
                                 and (self.iterations > 100)
 
-            
-      
+        # Database name and creation
+        db_name = settings.get(self.CFG_SECTION_OUTPT,
+                               self.CFG_PARAM_db_name,
+                               default = "{0}.db".format(self.baseFileName))
+        if not os.path.isabs(db_name):
+            db_name = os.path.join(self.outputDir,db_name)
+        self._setupDatabase(db_name)
 
     def saveData(self):
         """ 
@@ -921,8 +944,47 @@ class Simulation(object):
         else:
             logger.error("Unknown file format {0}".format(\
                     self.saveNetworkFormat))
+        #        logger.info("Wrote initial graph to '{0}'.".format(sveBaseName))
 
-#        logger.info("Wrote initial graph to '{0}'.".format(sveBaseName))
+
+    def _setupDatabase(self, db_name):
+        try:
+            logger.info("Connecting to database '{0}'".format(db_name))
+            self._dbConnection = sqlite3.connect(db_name)
+            cur = self._dbConnection.cursor()
+        except sqlite3.OperationalError as sqlerr:
+            logger.error("Could not open connection to database '{0}'.\n"\
+                         .format(db_name) + "Sqlite3 Error message: '{0}'."\
+                         .format(sqlerr))
+        # Check if the tables do not exist, create them.
+        tbls = sorted(cur.execute("SELECT name from sqlite_master"))
+        if sorted([self.DB_SIMULATION_TABLE_NAME, 
+                   self.DB_NODE_EVENT_TABLE_NAME]) != tbls:
+            cur.execute("""CREATE TABLE {0} (simulation_id INTEGER PRIMARY KEY,
+                                           nepidemix_version TEXT,
+                                           initial_graph BLOB,
+                                           configuration BLOB,
+                                           time_stamp DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
+                        .format(self.DB_SIMULATION_TABLE_NAME))
+     
+            cur.execute("""CREATE TABLE {0} (src_state TEXT, dst_state TEXT,
+                                           node_id INTEGER, simulation_id INTEGER, 
+                                           simulation_time FLOAT, 
+                                           major_iteration INTEGER,
+                                           minor_iteration INTEGER,
+                                           PRIMARY KEY (simulation_id, 
+                                                        major_iteration, 
+                                                        minor_iteration))"""\
+                        .format(self.DB_NODE_EVENT_TABLE_NAME))
+        # Create a simulation entry
+        cur.execute("""INSERT INTO {0} (nepidemix_version, 
+                                      initial_graph, 
+                                      configuration) VALUES (?,?,?)"""\
+                    .format(self.DB_SIMULATION_TABLE_NAME),
+                    (full_version,
+                     sqlite3.Binary(pickle.dumps(self.network, protocol=-1)),
+                     sqlite3.Binary(pickle.dumps(self.settings, protocol=-1))))
+        self._dbConnection.commit()
 
                                                        
 def _import_and_execute(name, modules, parameters):
