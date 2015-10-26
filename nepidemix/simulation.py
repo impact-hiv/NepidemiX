@@ -405,7 +405,7 @@ class Simulation(object):
     # Names of tables in the output database.
     DB_SIMULATION_TABLE_NAME = "simulation"
     DB_NODE_EVENT_TABLE_NAME = "node_event"
-
+    DB_NODE_STATE_TABLE      = "node_state" 
     def __init__(self):
         """
         Initialization method.
@@ -419,6 +419,8 @@ class Simulation(object):
         self.save_config = False
         self.settings = None
 
+        # Set when database is initialized, and simulation table filled out.
+        self._db_sim_id = None
 
     def execute(self):
         """ 
@@ -443,6 +445,9 @@ class Simulation(object):
         
         self.stateSamples[self.STATE_COUNT_FIELD_NAME] = []
         self.stateSamples[self.STATE_INFLUX_FIELD_NAME] = []
+
+        # Get database cursor
+        db_cur = self._dbConnection.cursor()
     
         # Add entry for time 0.
         for k in self.stateSamples:
@@ -499,6 +504,36 @@ class Simulation(object):
                         # Update count
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
+
+                        # Update database
+                        # Check if we have a description of the destination stat
+                        # (the source state should be there per definition)
+                        # If not, insert it.
+                        
+                        ncks = nc[1].keys()
+                        # db_cur.execute("""INSERT INTO {0}({1}) VALUES ({2})"""\
+                        #                .format(self.DB_NODE_STATE_TABLE,
+                        #                        ",".join(ncks),
+                        #                        ",".join(["?"]*(1+len(nc[1])))),
+                        #                (nc[1][k] for k in ncks))
+                        db_cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
+                        .format(self.DB_NODE_STATE_TABLE,
+                                ",".join(ncks),
+                                ",".join(["?"]*(1+len(nc[1])))),
+                        [hash(newstate)]+
+                        [nc[1][k] for k in ncks])
+                        db_cur.execute("""INSERT INTO {0}(src_state, dst_state,
+                                           node_id, simulation_id, 
+                                           simulation_time, 
+                                           major_iteration,
+                                           minor_iteration)
+                                          VALUES (?, ?, ?, ?, ?, ?, ?)"""\
+                                       .format(self.DB_NODE_EVENT_TABLE_NAME),
+                                       (hash(oldstate), hash(newstate),
+                                       n[0], self._db_sim_id,
+                                       readNetwork.graph[self.TIME_FIELD_NAME],
+                                        it, n[0]))
+                                       
                         
 #                         if writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] == nwn or \
 #                                 writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] == own or \
@@ -595,7 +630,8 @@ class Simulation(object):
         # Print 100 % when done
         if self.printProgress:
             sys.stdout.write("[100%]\n")
-        
+        # Commit changes to database
+        self._dbConnection.commit()
         logger.info("Simulation done.")
         endTime = time.time()
         logger.info("Total execution time: {0} s.".format(endTime-startTime))
@@ -976,6 +1012,19 @@ class Simulation(object):
                                                         major_iteration, 
                                                         minor_iteration))"""\
                         .format(self.DB_NODE_EVENT_TABLE_NAME))
+            # Now create the table describing the node attributes
+            # Deduce them first. As the state dictionary should be the same for
+            # all nodes use the first one.
+            key_types = ["{0} {1}".format(k, {str:"TEXT",
+                                              int:"INTEGER",
+                                              float:"REAL"}.get(type(v),"BLOB")
+                                          )\
+                         for k,v in self.network.node[0].iteritems()]
+            
+            cur.execute("""CREATE TABLE {0} (state_id INTEGER PRIMARY KEY, 
+                                             {1})"""\
+                        .format(self.DB_NODE_STATE_TABLE,
+                                ",".join(key_types)))
         # Create a simulation entry
         cur.execute("""INSERT INTO {0} (nepidemix_version, 
                                       initial_graph, 
@@ -984,6 +1033,19 @@ class Simulation(object):
                     (full_version,
                      sqlite3.Binary(pickle.dumps(self.network, protocol=-1)),
                      sqlite3.Binary(pickle.dumps(self.settings, protocol=-1))))
+        self._dbConnection.commit()
+        # Get and set the simulation ID.
+        self._db_sim_id = cur.lastrowid
+        logger.debug("_db_sim_id = {0}".format(self._db_sim_id))
+        # Now populate the state database with the initial graph states
+        for nc in self.network.nodes_iter(data=True):
+            ncks = nc[1].keys()
+            cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
+                        .format(self.DB_NODE_STATE_TABLE,
+                                ",".join(ncks),
+                                ",".join(["?"]*(1+len(nc[1])))),
+                        [hash(self.process.deduceNodeState(nc))]+
+                        [nc[1][k] for k in ncks])
         self._dbConnection.commit()
 
                                                        
