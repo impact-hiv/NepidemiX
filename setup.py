@@ -39,6 +39,7 @@ is_released = False
 # The packages we provide.
 packages=['nepidemix', 
           'nepidemix.utilities',
+          'nepidemix.utilities.dbio',
           'nepidemix.utilities.networkxtra',
           'nepidemix.utilities.networkxtra.generators']
 
