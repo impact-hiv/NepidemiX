@@ -16,105 +16,163 @@ NODE_EVENT_TABLE_SRC_STATE_COL = "src_state"
 NODE_EVENT_TABLE_DST_STATE_COL = "dst_state"
 NODE_STATE_TABLE_NAME = "node_state"
 
-def get_flow(db_connection, state, time_min = None, time_max = None):
+
+
+def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
     """
-    Return state event array and time step.
+    Get table with net flux between a set of states over a period of time.
+    Positive means flux from state set A to state set B, 
+    negative from state set B to A.
+
+    Flux is defined as the number of state changes per unit time at time t.
 
     Parameters
     ----------
-    
-    db_connection : sqlite3.Connection
-    
-    state : dictionary
-       Dictionary of attributes with possible values. They keys should be names
-       of attributes, and the values should be a 
-       set (or an iterable) containing all possible values for the corresponding
-       attribute. E.g. {"'disease'" : ["'acute'","'latent'"], "'age_group'" : ("'B'",)} will
-       select all states where the 'disease' state is either the string 'acute'
-       or the string 'latent', and where the attribute 'age_group' must be the
-       string 'B'. Note that string values must be 'escaped'. 
-       If the node/edge has any other associated attributes they can have any 
-       value.
+    db_connection : sqlite3.connection
 
-    time_min : float or None
-       If not None, only event with time stamps greater or equal to this number 
-       are selected.
+    state_A : Python dict, Partial state
+       This is a NepidemiX partial state set, defined as a dictionary where
+       each key is a state attribute, and each value a python set (or other 
+       iterable) with accepted values for this attribute. Non-listed 
+       attributes may have any value. Positive flux will have its source in
+       any state matching state_A.
 
-    time_max : float or None
-       If not None, only event with time stamps strictly less than this number 
-       are selected.
+    state_A : Python dict, Partial state
+       This is a NepidemiX partial state set, defined as a dictionary where
+       each key is a state attribute, and each value a python set (or other 
+       iterable) with accepted values for this attribute. Non-listed 
+       attributes may have any value. Negative flux will have its source in
+       any state matching state_B.
+
+    time_min : float
+       Minimum simulation time for flux (inclusive); if None the whole 
+       simulation time frame is considered.
+
+    time_max : float
+       Minimum simulation time for flux (exclusive); if None the whole 
+       simulation time frame is considered.
+
+    Returns
+    -------
+    table - The resulting time stamp and flux data.
+    header - Name of columns (time, flux).
+
     """
     # Open connection to db.
     cur = db_connection.cursor()
-
-    # Need to make sure every state variable is a set (and thus iterable)
-    # if a type error is cast, we'll assume the object is a unit and create a
-    # set of only that object.
-    # for k,v in state.items():
-    #     try:
-    #         state[k] = set(v)
-    #     except TypeError:
-    #         state[k] = set([v])
-
-    # Node event table conditions added to this list.
-    nevent_where_cond_list = []
-    if time_min != None:
-        nevent_where_cond_list.append("time >= {0}".format(time_min))
-    if time_max != None:
-        nevent_where_cond_list.append("time < {0}".format(time_max))
-
-    # Node state table conditions added to this list.
-    nstate_where_cond_list = []
-    # The state options as a string;
-    # Explanation: Strings on the form of <key> IN (<value1>, <value2>, ...)
-    nstate_where_cond_list.extend(["{0} IN ({1})".format(k, ",".join(v))\
-                                   for k,v in state.iteritems()])
-
-    # Helper function
-    def _conc_WHERE(cond_list, prefix="WHERE"):
-        # If any conditions exist, concatenate by 'AND' strings.
+    
+     # Helper functions
+    def _AND_conc_(cond_list, prefix=""):
+        """"
+        If any condition strings exist in cond_lost concatenate them
+        by 'AND' strings, otherwise return empty string.
+        Optional prefix string.
+        """ 
         if len(cond_list) > 0:
-            return prefix+" "+ " AND ".join(cond_list)
+            rs = prefix+" "+ " AND ".join([c for c in cond_list
+                                           if len(c.strip()) > 0])
+            if len(rs) > 1:
+                return rs
         return ""
 
-    # State selection string
-    # state_sel_str = """ SELECT {0} FROM {1} {2}""".format('state_id',
-    #                                         NODE_STATE_TABLE_NAME,
-    #                                         where_cond_str)
-    # The state name map.
+    def _create_state_SELECT_condition(node_event_id_field,
+                                       node_state_id_field,
+                                       node_state_table_name,
+                                       node_state_conditions):
+        if None in [node_event_id_field,
+                    node_state_id_field,
+                    node_state_table_name,
+                    node_state_conditions]:
+            return ""
+        return "{0} IN (SELECT {1} FROM {2} {3})".format(node_event_id_field,
+                                                         node_state_id_field,
+                                                         node_state_table_name,
+                                                         node_state_conditions)
+    
+    # Node state table conditions added to this list.
+    state_A_cond_list = []
+    # The state options as a string;
+    # Explanation: Strings on the form of <key> IN (<value1>, <value2>, ...)
+    state_A_cond_list.extend(["{0} IN ({1})".format(k, ",".join(v))\
+                              for k,v in state_A.iteritems()])
+    state_B_cond_list = []
+    # The state options as a string;
+    # Explanation: Strings on the form of <key> IN (<value1>, <value2>, ...)
+    state_B_cond_list.extend(["{0} IN ({1})".format(k, ",".join(v))\
+                              for k,v in state_B.iteritems()])
+
+    # Encoded time boundaries.
+    time_cond_list = []
+    if time_min != None:
+        print(time_min)
+        time_cond_list.append("time >= {0}".format(time_min))
+    if time_max != None:
+        time_cond_list.append("time < {0}".format(time_max))
+
+    time_cond_str = _AND_conc_(time_cond_list)
+    state_A_cond_str = _AND_conc_(state_A_cond_list, prefix='WHERE')
+    state_B_cond_str = _AND_conc_(state_B_cond_list, prefix='WHERE')
+
+    # SELECTion conditions for state A to state B
+    # Source (A)
+    AB_src_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_SRC_STATE_COL,
+                                                'state_id',
+                                                NODE_STATE_TABLE_NAME,
+                                                state_A_cond_str)
+    # Destination (B)
+    AB_dst_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_DST_STATE_COL,
+                                                'state_id',
+                                                NODE_STATE_TABLE_NAME,
+                                                state_B_cond_str)
+    # SELECTion conditions for state B to state A
+    # Source (B)
+    BA_src_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_SRC_STATE_COL,
+                                                'state_id',
+                                                NODE_STATE_TABLE_NAME,
+                                                state_B_cond_str)
+    # Destination (A)
+    BA_dst_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_DST_STATE_COL,
+                                                'state_id',
+                                                NODE_STATE_TABLE_NAME,
+                                                state_A_cond_str)
+    
+
+    # The basic selection string.
     sel_str = """SELECT {simulation_time} time, 
-                        (SELECT {state_name} FROM {node_state_table} 
-                                 WHERE {nt_node_id} == {et_node_id}) state, 
                         {weight} change 
                         FROM {event_table}
-                        WHERE {et_node_id} IN (SELECT {nt_node_id} 
-                                               FROM {node_state_table} 
-                                               {ns_WHERE_str}) {et_time_cond}
-                        """ # WHERE state IN ('I')
-    sel_dict = {'simulation_time' : 'simulation_time',
-                'event_table' : NODE_EVENT_TABLE_NAME,
-                'state_name' : 'state_name',
-                'nt_node_id' : 'state_id',
-                'et_node_id' : NODE_EVENT_TABLE_SRC_STATE_COL,
-                'node_state_table' : NODE_STATE_TABLE_NAME,
-                'ns_WHERE_str' : _conc_WHERE(nstate_where_cond_list),
-                'et_time_cond' : _conc_WHERE(nevent_where_cond_list,
-                                             prefix="AND"),
-                'weight' : -1}
-
-    sel_src_str = sel_str.format(**sel_dict)
-    sel_dict.update({'et_node_id' : NODE_EVENT_TABLE_DST_STATE_COL,
-                     'weight' : 1})
-    sel_dst_str = sel_str.format(**sel_dict)
+                        {ev_where_cond}""" 
+    sel_base_dict = {'simulation_time' : 'simulation_time',
+                     'event_table' : NODE_EVENT_TABLE_NAME}
+    AB_sel_dict = sel_base_dict.copy()
+    AB_sel_dict.update({'weight' : 1,
+                        'ev_where_cond': _AND_conc_([time_cond_str,
+                                                     AB_src_str,
+                                                     AB_dst_str], prefix='WHERE')})
+    BA_sel_dict = sel_base_dict.copy()
+    BA_sel_dict.update({'weight' : -1,
+                        'ev_where_cond': _AND_conc_([time_cond_str,
+                                                     BA_src_str,
+                                                     BA_dst_str], prefix='WHERE')})
     
+
+
+    sel_AB_str = sel_str.format(**AB_sel_dict)
+    sel_BA_str = sel_str.format(**BA_sel_dict)
+
     union_sel_str ="""{0} 
-    UNION 
+    UNION ALL
     {1}
-    ORDER BY time;""".format(sel_src_str, sel_dst_str)
+    ORDER BY time""".format(sel_AB_str, sel_BA_str)
 
     print(union_sel_str)
-    cur.execute(union_sel_str)
-    return cur.fetchall()
+    flux_sel_str = """SELECT time, SUM(change) flux 
+                       FROM ({0}) GROUP BY time;"""\
+                           .format(union_sel_str)
+    
+    cur.execute(flux_sel_str)
+    return cur.fetchall(), ["time","flux"]
+
     
 
 
