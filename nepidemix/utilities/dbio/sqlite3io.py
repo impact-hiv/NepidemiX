@@ -55,8 +55,6 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
     Returns
     -------
     table - The resulting time stamp and flux data.
-    header - Name of columns (time, flux).
-
     """
     # Open connection to db.
     cur = db_connection.cursor()
@@ -171,7 +169,7 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
                            .format(union_sel_str)
     
     cur.execute(flux_sel_str)
-    return cur.fetchall(), ["time","flux"]
+    return cur.fetchall()
 
     
 
