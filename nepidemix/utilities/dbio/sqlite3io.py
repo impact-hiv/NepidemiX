@@ -18,7 +18,10 @@ NODE_STATE_TABLE_NAME = "node_state"
 
 
 
-def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
+def get_flux(db_connection,
+             state_A, state_B,
+             time_min = None, time_max = None,
+             simulation_set = None):
     """
     Get table with net flux between a set of states over a period of time.
     Positive means flux from state set A to state set B, 
@@ -52,6 +55,11 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
        Minimum simulation time for flux (exclusive); if None the whole 
        simulation time frame is considered.
 
+    simulation_set : iterable of integers
+       This is the set of simulations (numbered from 1 and upwards) in the data
+       base to include in the query. The average flux per time step will be 
+       computed for this set. If None or an empty set all simulations are used.
+
     Returns
     -------
     table - The resulting time stamp and flux data.
@@ -67,9 +75,10 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
         Optional prefix string.
         """ 
         if len(cond_list) > 0:
-            rs = prefix+" "+ " AND ".join([c for c in cond_list
-                                           if len(c.strip()) > 0])
-            if len(rs) > 1:
+            andstr = " AND ".join([str(c) for c in cond_list
+                                           if len(str(c).strip()) > 0])
+            rs = prefix+" "+ andstr
+            if len(andstr) > 1:
                 return rs
         return ""
 
@@ -134,6 +143,12 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
                                                 NODE_STATE_TABLE_NAME,
                                                 state_A_cond_str)
     
+    # This selects the correct subset of simulations in case one is given.
+    simulation_select_str = ""
+    if simulation_set != None and len(simulation_set) > 0:
+        simulation_select_str = "simulation_id IN ({0})"\
+                                .format(",".join([str(c) \
+                                                  for c in simulation_set]))
 
     # The basic selection string.
     sel_str = """SELECT {simulation_time} time, 
@@ -146,12 +161,16 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
     AB_sel_dict.update({'weight' : 1,
                         'ev_where_cond': _AND_conc_([time_cond_str,
                                                      AB_src_str,
-                                                     AB_dst_str], prefix='WHERE')})
+                                                     AB_dst_str,
+                                                     simulation_select_str],
+                                                    prefix='WHERE')})
     BA_sel_dict = sel_base_dict.copy()
     BA_sel_dict.update({'weight' : -1,
                         'ev_where_cond': _AND_conc_([time_cond_str,
                                                      BA_src_str,
-                                                     BA_dst_str], prefix='WHERE')})
+                                                     BA_dst_str,
+                                                     simulation_select_str],
+                                                    prefix='WHERE')})
     
 
 
@@ -163,14 +182,19 @@ def get_flux(db_connection, state_A, state_B, time_min = None, time_max = None):
     {1}
     ORDER BY time""".format(sel_AB_str, sel_BA_str)
 
-    print(union_sel_str)
-    flux_sel_str = """SELECT time, SUM(change) flux 
-                       FROM ({0}) GROUP BY time;"""\
-                           .format(union_sel_str)
+
+    simulation_count_str = "SELECT COUNT(simulation_id) FROM simulation " +\
+                           _AND_conc_([simulation_select_str], prefix = " WHERE ")
+    
+    # Compute the mean flux per time stamp as the sum of all flux at that time
+    # (order by time) over the total number of simulations in selection.
+    flux_sel_str = """ SELECT time, SUM(change)*1.0/({0}) flux
+                       FROM ({1}) GROUP BY time;""".format(simulation_count_str,
+                                                           union_sel_str)
+
+    print(flux_sel_str)
     
     cur.execute(flux_sel_str)
     return cur.fetchall()
-
-    
 
 
