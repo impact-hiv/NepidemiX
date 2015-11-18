@@ -405,7 +405,7 @@ class Simulation(object):
     # Names of tables in the output database.
     DB_SIMULATION_TABLE_NAME = "simulation"
     DB_NODE_EVENT_TABLE_NAME = "node_event"
-    DB_NODE_STATE_TABLE      = "node_state" 
+    DB_NODE_STATE_TABLE_NAME      = "node_state" 
     def __init__(self):
         """
         Initialization method.
@@ -512,12 +512,12 @@ class Simulation(object):
                         
                         ncks = nc[1].keys()
                         # db_cur.execute("""INSERT INTO {0}({1}) VALUES ({2})"""\
-                        #                .format(self.DB_NODE_STATE_TABLE,
+                        #                .format(self.DB_NODE_STATE_TABLE_NAME,
                         #                        ",".join(ncks),
                         #                        ",".join(["?"]*(1+len(nc[1])))),
                         #                (nc[1][k] for k in ncks))
                         db_cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
-                        .format(self.DB_NODE_STATE_TABLE,
+                        .format(self.DB_NODE_STATE_TABLE_NAME,
                                 ",".join(ncks),
                                 ",".join(["?"]*(1+len(nc[1])))),
                         [hash(newstate)]+
@@ -993,9 +993,10 @@ class Simulation(object):
                          .format(db_name) + "Sqlite3 Error message: '{0}'."\
                          .format(sqlerr))
         # Check if the tables do not exist, create them.
-        tbls = sorted(cur.execute("SELECT name from sqlite_master"))
-        if sorted([self.DB_SIMULATION_TABLE_NAME, 
-                   self.DB_NODE_EVENT_TABLE_NAME]) != tbls:
+        tbls = sorted([n[0] for n in cur.execute("SELECT name from sqlite_master")])
+        if not all([d in tbls for d in [self.DB_SIMULATION_TABLE_NAME, 
+                                       self.DB_NODE_EVENT_TABLE_NAME,
+                                       self.DB_NODE_STATE_TABLE_NAME]]):
             cur.execute("""CREATE TABLE {0} (simulation_id INTEGER PRIMARY KEY,
                                            nepidemix_version TEXT,
                                            initial_graph BLOB,
@@ -1023,7 +1024,7 @@ class Simulation(object):
             
             cur.execute("""CREATE TABLE {0} (state_id INTEGER PRIMARY KEY,
                                              {1})"""\
-                        .format(self.DB_NODE_STATE_TABLE,
+                        .format(self.DB_NODE_STATE_TABLE_NAME,
                                 ",".join(key_types)))
         # Create a simulation entry
         cur.execute("""INSERT INTO {0} (nepidemix_version, 
@@ -1041,7 +1042,7 @@ class Simulation(object):
         for nc in self.network.nodes_iter(data=True):
             ncks = nc[1].keys()
             cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
-                        .format(self.DB_NODE_STATE_TABLE,
+                        .format(self.DB_NODE_STATE_TABLE_NAME,
                                 ",".join(ncks),
                                 ",".join(["?"]*(1+len(nc[1])))),
                         [hash(self.process.deduceNodeState(nc))]+
