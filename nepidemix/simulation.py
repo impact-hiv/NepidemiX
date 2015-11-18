@@ -516,12 +516,11 @@ class Simulation(object):
                         #                        ",".join(ncks),
                         #                        ",".join(["?"]*(1+len(nc[1])))),
                         #                (nc[1][k] for k in ncks))
-                        db_cur.execute("""INSERT OR IGNORE INTO {0}(state_id, state_name, {1}) VALUES ({2})"""\
+                        db_cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
                         .format(self.DB_NODE_STATE_TABLE,
                                 ",".join(ncks),
-                                ",".join(["?"]*(2+len(nc[1])))),
+                                ",".join(["?"]*(1+len(nc[1])))),
                         [hash(newstate)]+
-                        [",".join([str(k)+":"+str(nc[1][k]) for k in ncks])]+
                         [nc[1][k] for k in ncks])
                         db_cur.execute("""INSERT INTO {0}(src_state, dst_state,
                                            node_id, simulation_id, 
@@ -1023,7 +1022,6 @@ class Simulation(object):
                          for k,v in self.network.node[0].iteritems()]
             
             cur.execute("""CREATE TABLE {0} (state_id INTEGER PRIMARY KEY,
-                                             state_name TEXT,
                                              {1})"""\
                         .format(self.DB_NODE_STATE_TABLE,
                                 ",".join(key_types)))
@@ -1042,12 +1040,11 @@ class Simulation(object):
         # Now populate the state database with the initial graph states
         for nc in self.network.nodes_iter(data=True):
             ncks = nc[1].keys()
-            cur.execute("""INSERT OR IGNORE INTO {0}(state_id, state_name, {1}) VALUES ({2})"""\
+            cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
                         .format(self.DB_NODE_STATE_TABLE,
                                 ",".join(ncks),
-                                ",".join(["?"]*(2+len(nc[1])))),
+                                ",".join(["?"]*(1+len(nc[1])))),
                         [hash(self.process.deduceNodeState(nc))]+
-                        [",".join([str(k)+":"+str(nc[1][k]) for k in ncks])]+
                         [nc[1][k] for k in ncks])
         self._dbConnection.commit()
 
