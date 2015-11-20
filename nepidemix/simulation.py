@@ -40,6 +40,8 @@ from nepidemix.utilities import NepidemiXConfigParser
 
 from nepidemix.version import full_version
 
+from nepidemix.utilities.dbio import sqlite3io
+
 # Logging
 import logging
 
@@ -402,10 +404,7 @@ class Simulation(object):
     STATE_COUNT_FIELD_NAME = "state_count"
     STATE_INFLUX_FIELD_NAME = "state_influx"
 
-    # Names of tables in the output database.
-    DB_SIMULATION_TABLE_NAME = "simulation"
-    DB_NODE_EVENT_TABLE_NAME = "node_event"
-    DB_NODE_STATE_TABLE_NAME      = "node_state" 
+
     def __init__(self):
         """
         Initialization method.
@@ -511,24 +510,28 @@ class Simulation(object):
                         # If not, insert it.
                         
                         ncks = nc[1].keys()
-                        # db_cur.execute("""INSERT INTO {0}({1}) VALUES ({2})"""\
-                        #                .format(self.DB_NODE_STATE_TABLE_NAME,
-                        #                        ",".join(ncks),
-                        #                        ",".join(["?"]*(1+len(nc[1])))),
-                        #                (nc[1][k] for k in ncks))
-                        db_cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
-                        .format(self.DB_NODE_STATE_TABLE_NAME,
+                        db_cur.execute("""INSERT OR IGNORE INTO {0}({1}, {2}) VALUES ({3})"""\
+                        .format(sqlite3io.NODE_STATE_TABLE_NAME,
+                                sqlite3io.NODE_STATE_TABLE_ID_COL,
                                 ",".join(ncks),
                                 ",".join(["?"]*(1+len(nc[1])))),
                         [hash(newstate)]+
                         [nc[1][k] for k in ncks])
-                        db_cur.execute("""INSERT INTO {0}(src_state, dst_state,
-                                           node_id, simulation_id, 
-                                           simulation_time, 
-                                           major_iteration,
-                                           minor_iteration)
+                        db_cur.execute("""INSERT INTO {0}({1}, {2},
+                                           {3}, {4}, 
+                                           {5}, 
+                                           {6},
+                                           {7})
                                           VALUES (?, ?, ?, ?, ?, ?, ?)"""\
-                                       .format(self.DB_NODE_EVENT_TABLE_NAME),
+                                       .format(sqlite3io.NODE_EVENT_TABLE_NAME,
+                                               sqlite3io.NODE_EVENT_TABLE_SRC_STATE_COL,
+                                               sqlite3io.NODE_EVENT_TABLE_DST_STATE_COL,
+                                               sqlite3io.NODE_EVENT_TABLE_NODE_ID_COL,
+                                               sqlite3io.NODE_EVENT_TABLE_SIM_ID_COL,
+                                               sqlite3io.NODE_EVENT_TABLE_SIM_TIME_COL,
+                                               sqlite3io.NODE_EVENT_TABLE_MAJOR_IT_COL,
+                                               sqlite3io.NODE_EVENT_TABLE_MINOR_IT_COL,
+                                       ),
                                        (hash(oldstate), hash(newstate),
                                        n[0], self._db_sim_id,
                                        readNetwork.graph[self.TIME_FIELD_NAME],
@@ -994,25 +997,38 @@ class Simulation(object):
                          .format(sqlerr))
         # Check if the tables do not exist, create them.
         tbls = sorted([n[0] for n in cur.execute("SELECT name from sqlite_master")])
-        if not all([d in tbls for d in [self.DB_SIMULATION_TABLE_NAME, 
-                                       self.DB_NODE_EVENT_TABLE_NAME,
-                                       self.DB_NODE_STATE_TABLE_NAME]]):
-            cur.execute("""CREATE TABLE {0} (simulation_id INTEGER PRIMARY KEY,
-                                           nepidemix_version TEXT,
-                                           initial_graph BLOB,
-                                           configuration BLOB,
-                                           time_stamp DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
-                        .format(self.DB_SIMULATION_TABLE_NAME))
+        if not all([d in tbls for d in [sqlite3io.SIMULATION_TABLE_NAME, 
+                                       sqlite3io.NODE_EVENT_TABLE_NAME,
+                                       sqlite3io.NODE_STATE_TABLE_NAME]]):
+            cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
+                                           {2} TEXT,
+                                           {3} BLOB,
+                                           {4} BLOB,
+                                           {5} DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
+                        .format(sqlite3io.SIMULATION_TABLE_NAME,
+                                sqlite3io.SIMULATION_TABLE_SIM_ID_COL,
+                                sqlite3io.SIMULATION_TABLE_NPX_V_COL,
+                                sqlite3io.SIMULATION_TABLE_GRAPH_COL,
+                                sqlite3io.SIMULATION_TABLE_CONF_COL,
+                                sqlite3io.SIMULATION_TABLE_TIME_COL,
+                        ))
      
-            cur.execute("""CREATE TABLE {0} (src_state INTEGER, dst_state INTEGER,
-                                           node_id INTEGER, simulation_id INTEGER, 
-                                           simulation_time FLOAT, 
-                                           major_iteration INTEGER,
-                                           minor_iteration INTEGER,
-                                           PRIMARY KEY (simulation_id, 
-                                                        major_iteration, 
-                                                        minor_iteration))"""\
-                        .format(self.DB_NODE_EVENT_TABLE_NAME))
+            cur.execute("""CREATE TABLE {0} ({1} INTEGER, {2} INTEGER,
+                                           {3} INTEGER, {4} INTEGER, 
+                                           {5} FLOAT, 
+                                           {6} INTEGER,
+                                           {7} INTEGER,
+                                           PRIMARY KEY ({4}, 
+                                                        {6}, 
+                                                        {7}))"""\
+                        .format(sqlite3io.NODE_EVENT_TABLE_NAME,
+                                sqlite3io.NODE_EVENT_TABLE_SRC_STATE_COL,
+                                sqlite3io.NODE_EVENT_TABLE_DST_STATE_COL,
+                                sqlite3io.NODE_EVENT_TABLE_NODE_ID_COL,
+                                sqlite3io.NODE_EVENT_TABLE_SIM_ID_COL,
+                                sqlite3io.NODE_EVENT_TABLE_SIM_TIME_COL,
+                                sqlite3io.NODE_EVENT_TABLE_MAJOR_IT_COL,
+                                sqlite3io.NODE_EVENT_TABLE_MINOR_IT_COL,))
             # Now create the table describing the node attributes
             # Deduce them first. As the state dictionary should be the same for
             # all nodes use the first one.
@@ -1022,15 +1038,18 @@ class Simulation(object):
                                           )\
                          for k,v in self.network.node[0].iteritems()]
             
-            cur.execute("""CREATE TABLE {0} (state_id INTEGER PRIMARY KEY,
-                                             {1})"""\
-                        .format(self.DB_NODE_STATE_TABLE_NAME,
+            cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
+                                             {2})"""\
+                        .format(sqlite3io.NODE_STATE_TABLE_NAME,
+                                sqlite3io.NODE_STATE_TABLE_ID_COL,
                                 ",".join(key_types)))
         # Create a simulation entry
-        cur.execute("""INSERT INTO {0} (nepidemix_version, 
-                                      initial_graph, 
-                                      configuration) VALUES (?,?,?)"""\
-                    .format(self.DB_SIMULATION_TABLE_NAME),
+        cur.execute("""INSERT INTO {0} ({1}, {2}, {3}) VALUES (?,?,?)"""\
+                    .format(sqlite3io.SIMULATION_TABLE_NAME,
+                            sqlite3io.SIMULATION_TABLE_NPX_V_COL,
+                            sqlite3io.SIMULATION_TABLE_GRAPH_COL,
+                            sqlite3io.SIMULATION_TABLE_CONF_COL,
+                    ),
                     (full_version,
                      sqlite3.Binary(pickle.dumps(self.network, protocol=-1)),
                      sqlite3.Binary(pickle.dumps(self.settings, protocol=-1))))
@@ -1041,8 +1060,9 @@ class Simulation(object):
         # Now populate the state database with the initial graph states
         for nc in self.network.nodes_iter(data=True):
             ncks = nc[1].keys()
-            cur.execute("""INSERT OR IGNORE INTO {0}(state_id, {1}) VALUES ({2})"""\
-                        .format(self.DB_NODE_STATE_TABLE_NAME,
+            cur.execute("""INSERT OR IGNORE INTO {0}({1}, {2}) VALUES ({3})"""\
+                        .format(sqlite3io.NODE_STATE_TABLE_NAME,
+                                sqlite3io.NODE_STATE_TABLE_ID_COL,
                                 ",".join(ncks),
                                 ",".join(["?"]*(1+len(nc[1])))),
                         [hash(self.process.deduceNodeState(nc))]+

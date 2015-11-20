@@ -14,8 +14,19 @@ import sys
 NODE_EVENT_TABLE_NAME = "node_event"
 NODE_EVENT_TABLE_SRC_STATE_COL = "src_state"
 NODE_EVENT_TABLE_DST_STATE_COL = "dst_state"
+NODE_EVENT_TABLE_NODE_ID_COL = "node_id"
+NODE_EVENT_TABLE_SIM_ID_COL = "simulation_id"
+NODE_EVENT_TABLE_SIM_TIME_COL = "simulation_time"
+NODE_EVENT_TABLE_MAJOR_IT_COL = "major_iteration"
+NODE_EVENT_TABLE_MINOR_IT_COL = "minor_iteration"
 NODE_STATE_TABLE_NAME = "node_state"
-
+NODE_STATE_TABLE_ID_COL = "state_id"
+SIMULATION_TABLE_NAME="simulation"
+SIMULATION_TABLE_SIM_ID_COL = NODE_EVENT_TABLE_SIM_ID_COL
+SIMULATION_TABLE_NPX_V_COL = "nepidemix_version"
+SIMULATION_TABLE_GRAPH_COL = "initial_graph"
+SIMULATION_TABLE_CONF_COL =  "configuration"
+SIMULATION_TABLE_TIME_COL = "time_stamp"
 
 
 def get_flux(db_connection,
@@ -123,31 +134,32 @@ def get_flux(db_connection,
     # SELECTion conditions for state A to state B
     # Source (A)
     AB_src_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_SRC_STATE_COL,
-                                                'state_id',
+                                                NODE_STATE_TABLE_ID_COL,
                                                 NODE_STATE_TABLE_NAME,
                                                 state_A_cond_str)
     # Destination (B)
     AB_dst_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_DST_STATE_COL,
-                                                'state_id',
+                                                NODE_STATE_TABLE_ID_COL,
                                                 NODE_STATE_TABLE_NAME,
                                                 state_B_cond_str)
     # SELECTion conditions for state B to state A
     # Source (B)
     BA_src_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_SRC_STATE_COL,
-                                                'state_id',
+                                                NODE_STATE_TABLE_ID_COL,
                                                 NODE_STATE_TABLE_NAME,
                                                 state_B_cond_str)
     # Destination (A)
     BA_dst_str = _create_state_SELECT_condition(NODE_EVENT_TABLE_DST_STATE_COL,
-                                                'state_id',
+                                                NODE_STATE_TABLE_ID_COL,
                                                 NODE_STATE_TABLE_NAME,
                                                 state_A_cond_str)
     
     # This selects the correct subset of simulations in case one is given.
     simulation_select_str = ""
     if simulation_set != None and len(simulation_set) > 0:
-        simulation_select_str = "simulation_id IN ({0})"\
-                                .format(",".join([str(c) \
+        simulation_select_str = "{0} IN ({1})"\
+                                .format(NODE_EVENT_TABLE_SIM_ID_COL,
+                                        ",".join([str(c) \
                                                   for c in simulation_set]))
 
     # The basic selection string.
@@ -155,7 +167,7 @@ def get_flux(db_connection,
                         {weight} change 
                         FROM {event_table}
                         {ev_where_cond}""" 
-    sel_base_dict = {'simulation_time' : 'simulation_time',
+    sel_base_dict = {'simulation_time' : NODE_EVENT_TABLE_SIM_TIME_COL,
                      'event_table' : NODE_EVENT_TABLE_NAME}
     AB_sel_dict = sel_base_dict.copy()
     AB_sel_dict.update({'weight' : 1,
@@ -183,7 +195,8 @@ def get_flux(db_connection,
     ORDER BY time""".format(sel_AB_str, sel_BA_str)
 
 
-    simulation_count_str = "SELECT COUNT(simulation_id) FROM simulation " +\
+    simulation_count_str = "SELECT COUNT({0}) FROM simulation "\
+                           .format(SIMULATION_TABLE_SIM_ID_COL) +\
                            _AND_conc_([simulation_select_str], prefix = " WHERE ")
     
     # Compute the mean flux per time stamp as the sum of all flux at that time
