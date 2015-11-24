@@ -45,7 +45,8 @@ def get_flux(db_connection,
     Positive means flux from state set A to state set B, 
     negative from state set B to A.
 
-    Flux is defined as the number of state changes per unit time at time t.
+    Flux is defined as the fraction of network size state changes per unit time 
+    at time t.
 
     Parameters
     ----------
@@ -280,7 +281,7 @@ def mean_density(db_connection,
             for k,v in state.iteritems():
                 for n in graph.nodes_iter(data=True):
                     if n[1][k] in [itm.strip("'").strip('"') for itm in v]:
-                        gn +=1.0
+                        gn += 1.0
         avn+=gn/graph.number_of_nodes()
         
     avn = avn/len(simulation_set)
