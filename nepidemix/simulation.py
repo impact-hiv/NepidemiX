@@ -536,28 +536,6 @@ class Simulation(object):
                                        n[0], self._db_sim_id,
                                        readNetwork.graph[self.TIME_FIELD_NAME],
                                         it, n[0]))
-                                       
-                        
-#                         if writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] == nwn or \
-#                                 writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] == own or \
-#                                 readNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] != nrn or \
-#                                 readNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] != orn:
-#                             logger.error("""Error in state counts! 
-# newstate: write original = {0}, write update = {1}
-# newstate: read original = {2}, read update = {3}
-# oldstate: write original = {4}, write update = {5}
-# oldstate: read original = {6}, read update = {7}
-
-# """.format(nwn,
-#            writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate],
-#            nrn,
-#            readNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate],
-#            own,
-#            writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate],
-#            orn,
-#            readNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate]))
-#                             exit(-1)
-
 
                         # Update influx
                         writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
@@ -1004,12 +982,16 @@ class Simulation(object):
                                            {2} TEXT,
                                            {3} BLOB,
                                            {4} BLOB,
-                                           {5} DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
+                                           {5} INTEGER,
+                                           {6} INTEGER,
+                                           {7} DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
                         .format(sqlite3io.SIMULATION_TABLE_NAME,
                                 sqlite3io.SIMULATION_TABLE_SIM_ID_COL,
                                 sqlite3io.SIMULATION_TABLE_NPX_V_COL,
                                 sqlite3io.SIMULATION_TABLE_GRAPH_COL,
                                 sqlite3io.SIMULATION_TABLE_CONF_COL,
+                                sqlite3io.SIMULATION_TABLE_NUM_NODES_COL,
+                                sqlite3io.SIMULATION_TABLE_NUM_EDGES_COL,
                                 sqlite3io.SIMULATION_TABLE_TIME_COL,
                         ))
      
@@ -1044,15 +1026,20 @@ class Simulation(object):
                                 sqlite3io.NODE_STATE_TABLE_ID_COL,
                                 ",".join(key_types)))
         # Create a simulation entry
-        cur.execute("""INSERT INTO {0} ({1}, {2}, {3}) VALUES (?,?,?)"""\
+        cur.execute("""INSERT INTO {0} ({1}, {2}, {3}, {4}, {5}) VALUES (?,?,?,?,?)"""\
                     .format(sqlite3io.SIMULATION_TABLE_NAME,
                             sqlite3io.SIMULATION_TABLE_NPX_V_COL,
                             sqlite3io.SIMULATION_TABLE_GRAPH_COL,
+                            sqlite3io.SIMULATION_TABLE_NUM_NODES_COL,
+                            sqlite3io.SIMULATION_TABLE_NUM_EDGES_COL,
                             sqlite3io.SIMULATION_TABLE_CONF_COL,
                     ),
                     (full_version,
                      sqlite3.Binary(pickle.dumps(self.network, protocol=-1)),
-                     sqlite3.Binary(pickle.dumps(self.settings, protocol=-1))))
+                     self.network.number_of_nodes(),
+                     self.network.number_of_edges(),
+                     sqlite3.Binary(pickle.dumps(self.settings, protocol=-1)),
+                    ))
         self._dbConnection.commit()
         # Get and set the simulation ID.
         self._db_sim_id = cur.lastrowid

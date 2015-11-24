@@ -11,6 +11,12 @@ __license__ = "Modified BSD License"
 
 import sys
 
+import numpy as np
+
+import pickle
+
+from nepidemix.utilities.networkxtra import entityCountSet
+
 NODE_EVENT_TABLE_NAME = "node_event"
 NODE_EVENT_TABLE_SRC_STATE_COL = "src_state"
 NODE_EVENT_TABLE_DST_STATE_COL = "dst_state"
@@ -21,13 +27,14 @@ NODE_EVENT_TABLE_MAJOR_IT_COL = "major_iteration"
 NODE_EVENT_TABLE_MINOR_IT_COL = "minor_iteration"
 NODE_STATE_TABLE_NAME = "node_state"
 NODE_STATE_TABLE_ID_COL = "state_id"
-SIMULATION_TABLE_NAME="simulation"
+SIMULATION_TABLE_NAME = "simulation"
 SIMULATION_TABLE_SIM_ID_COL = NODE_EVENT_TABLE_SIM_ID_COL
 SIMULATION_TABLE_NPX_V_COL = "nepidemix_version"
 SIMULATION_TABLE_GRAPH_COL = "initial_graph"
 SIMULATION_TABLE_CONF_COL =  "configuration"
 SIMULATION_TABLE_TIME_COL = "time_stamp"
-
+SIMULATION_TABLE_NUM_NODES_COL = "initial_node_count"
+SIMULATION_TABLE_NUM_EDGES_COL = "initial_edge_count"
 
 def get_flux(db_connection,
              state_A, state_B,
@@ -69,7 +76,7 @@ def get_flux(db_connection,
     simulation_set : iterable of integers
        This is the set of simulations (numbered from 1 and upwards) in the data
        base to include in the query. The average flux per time step will be 
-       computed for this set. If None or an empty set all simulations are used.
+       computed for this set. If None, all simulations are used.
 
     Returns
     -------
@@ -78,21 +85,7 @@ def get_flux(db_connection,
     # Open connection to db.
     cur = db_connection.cursor()
     
-     # Helper functions
-    def _AND_conc_(cond_list, prefix=""):
-        """"
-        If any condition strings exist in cond_lost concatenate them
-        by 'AND' strings, otherwise return empty string.
-        Optional prefix string.
-        """ 
-        if len(cond_list) > 0:
-            andstr = " AND ".join([str(c) for c in cond_list
-                                           if len(str(c).strip()) > 0])
-            rs = prefix+" "+ andstr
-            if len(andstr) > 1:
-                return rs
-        return ""
-
+     # Helper function
     def _create_state_SELECT_condition(node_event_id_field,
                                        node_state_id_field,
                                        node_state_table_name,
@@ -122,7 +115,6 @@ def get_flux(db_connection,
     # Encoded time boundaries.
     time_cond_list = []
     if time_min != None:
-        print(time_min)
         time_cond_list.append("time >= {0}".format(time_min))
     if time_max != None:
         time_cond_list.append("time < {0}".format(time_max))
@@ -156,28 +148,37 @@ def get_flux(db_connection,
     
     # This selects the correct subset of simulations in case one is given.
     simulation_select_str = ""
-    if simulation_set != None and len(simulation_set) > 0:
+    if simulation_set != None:
         simulation_select_str = "{0} IN ({1})"\
                                 .format(NODE_EVENT_TABLE_SIM_ID_COL,
                                         ",".join([str(c) \
                                                   for c in simulation_set]))
 
+    # Selects the number of nodes in the network.
+    numnodes_sel_str = "(SELECT {0} FROM {1} WHERE {2} == {3})"\
+                       .format(SIMULATION_TABLE_NUM_NODES_COL,
+                               SIMULATION_TABLE_NAME,
+                               SIMULATION_TABLE_SIM_ID_COL,
+                               NODE_EVENT_TABLE_SIM_ID_COL)
+        
     # The basic selection string.
     sel_str = """SELECT {simulation_time} time, 
-                        {weight} change 
+                        {weight}/{numnodes} change 
                         FROM {event_table}
                         {ev_where_cond}""" 
     sel_base_dict = {'simulation_time' : NODE_EVENT_TABLE_SIM_TIME_COL,
-                     'event_table' : NODE_EVENT_TABLE_NAME}
+                     'event_table' : NODE_EVENT_TABLE_NAME,
+                     'numnodes' : numnodes_sel_str
+    }
     AB_sel_dict = sel_base_dict.copy()
-    AB_sel_dict.update({'weight' : 1,
+    AB_sel_dict.update({'weight' : 1.0,
                         'ev_where_cond': _AND_conc_([time_cond_str,
                                                      AB_src_str,
                                                      AB_dst_str,
                                                      simulation_select_str],
                                                     prefix='WHERE')})
     BA_sel_dict = sel_base_dict.copy()
-    BA_sel_dict.update({'weight' : -1,
+    BA_sel_dict.update({'weight' : -1.0,
                         'ev_where_cond': _AND_conc_([time_cond_str,
                                                      BA_src_str,
                                                      BA_dst_str,
@@ -211,3 +212,109 @@ def get_flux(db_connection,
     return cur.fetchall()
 
 
+def mean_density(db_connection,
+             state,
+             time_min = None, time_max = None,
+             simulation_set = None):
+    """
+    Mean density of a state in graph over time.
+
+    For each time step returns the mean fraction of nodes in a given state set
+    over all all simulations (or a subset of all simulations) in database.
+    
+    
+    Parameters
+    ----------
+    db_connection : sqlite3.connection
+
+    state : Python dict, Partial state
+       This is a NepidemiX partial state set, defined as a dictionary where
+       each key is a state attribute, and each value a python set (or other 
+       iterable) with accepted values for this attribute. Non-listed 
+       attributes may have any value.
+
+    time_min : float
+       Minimum simulation time (inclusive); if None the whole 
+       simulation time frame is considered.
+
+    time_max : float
+       Minimum simulation time (exclusive); if None the whole 
+       simulation time frame is considered.
+
+    simulation_set : iterable of integers
+       This is the set of simulations (numbered from 1 and upwards) in the data
+       base to include in the query. The average flux per time step will be 
+       computed for this set. If None, all simulations are used.
+
+    Returns
+    -------
+    table - The resulting time stamp and density data.
+    """
+
+    cur = db_connection.cursor()
+    # Retrieve the initial networks for all simulations in the simulation set
+    # and count the number of nodes in the state set.
+
+    # Do one simulation at a time in a loop. Slower, but networks can be
+    # rather large, so to save mem...
+    # If no subset of simulations are specified, it means all, and we need to
+    # fetch a list of them.
+    if simulation_set == None:
+        cur.execute("SELECT {0} FROM {1};".format(SIMULATION_TABLE_SIM_ID_COL,
+                                                  SIMULATION_TABLE_NAME))
+        simulation_set = [s[0] for s in cur.fetchall()]
+
+    avn = 0.0
+    for sim in simulation_set:
+        gn =0.0
+        cur.execute("SELECT {0} FROM {1} WHERE {2} == {3};"\
+                    .format(SIMULATION_TABLE_GRAPH_COL,
+                            SIMULATION_TABLE_NAME,
+                            SIMULATION_TABLE_SIM_ID_COL,
+                            sim))
+        
+        graph = pickle.loads(cur.fetchall()[0][0])
+        if len(state) < 1:
+            gn += graph.number_of_nodes()
+        else:
+            for k,v in state.iteritems():
+                for n in graph.nodes_iter(data=True):
+                    if n[1][k] in [itm.strip("'").strip('"') for itm in v]:
+                        gn +=1.0
+        avn+=gn/graph.number_of_nodes()
+        
+    avn = avn/len(simulation_set)
+
+    # Get the flux from all sets to state. The net flux will be negative if
+    # nodes are leaving the state in question, and positive if going in to it.
+    # Need to be taken all the way from time 0 as we only have an initial
+    # count then.
+    flx = np.array(get_flux(db_connection, {}, state,
+                            time_min = 0, time_max = time_max,
+                            simulation_set = simulation_set))
+
+    # Add the original number of states to first flux item.
+    flx[0,1] = flx[0,1] + avn
+
+    # Compute cumulative sum of flux.
+    flx[:,1] = flx[:,1].cumsum()
+
+    # Pick out the rows where time is correct.
+    flx = flx[flx[:,0] >= time_min]
+
+    return flx
+    
+
+def _AND_conc_(cond_list, prefix=""):
+    """"
+    If any condition strings exist in cond_lost concatenate them
+    by 'AND' strings, otherwise return empty string.
+    Optional prefix string.
+    """ 
+    if len(cond_list) > 0:
+        andstr = " AND ".join([str(c) for c in cond_list
+                                       if len(str(c).strip()) > 0])
+        rs = prefix+" "+ andstr
+        if len(andstr) > 1:
+            return rs
+    return ""
