@@ -297,21 +297,6 @@ class Simulation(object):
     |                            | node state counts are always saved even   |
     |                            | if they are not covered by the interval.  |
     +----------------------------+-------------------------------------------+
-    | save_state_influx          | Optional (default value true) switch      |
-    |                            | (on/off, true/false, yes/no, 1/0).        |            
-    |                            | If this is true/yes/on, the network node  |
-    |                            | states influx (total num new nodes in     |
-    |                            | state) will be saved to a csv file.       |
-    |                            | Note: only valid if the current process   |
-    |                            | support node updates. If not, nothing     |
-    |                            | will be saved.                            |
-    +----------------------------+-------------------------------------------+
-    | save_state_influx_interval | Optional (default value 1). Save influx   |
-    |                            | every <value> iteration. Value            |
-    |                            | is integer >= 1. Note, initial and final  |
-    |                            | node state influx are always saved even   |
-    |                            | if they are not covered by the interval.  |
-    +----------------------------+-------------------------------------------+
     | save_network_compress_file | Optional (default value true) switch      |
     |                            | (on/off, true/false, yes/no, 1/0).        |
     |                            | Denotes if the saved network files should |
@@ -393,8 +378,6 @@ class Simulation(object):
     CFG_PARAM_save_network_compress_file = "save_network_compress_file"
     CFG_PARAM_save_state_count = "save_state_count"
     CFG_PARAM_save_state_count_interval = "save_state_count_interval"
-    CFG_PARAM_save_state_influx = "save_state_influx"
-    CFG_PARAM_save_state_influx_interval = "save_state_influx_interval"
     CFG_PARAM_save_node_rule_transition_count = "save_state_transition_cnt"
     CFG_PARAM_print_progress = "print_progress_bar"
     CFG_PARAM_db_name = "db_name"
@@ -402,7 +385,6 @@ class Simulation(object):
     # Names of fields in the network graph dictionary.
     TIME_FIELD_NAME = "Time"
     STATE_COUNT_FIELD_NAME = "state_count"
-    STATE_INFLUX_FIELD_NAME = "state_influx"
 
 
     def __init__(self):
@@ -413,7 +395,6 @@ class Simulation(object):
         self.process = None
         self.network = None
         self.stateSamples = None
-        self.stateInFlux = None
 
         self.save_config = False
         self.settings = None
@@ -443,7 +424,6 @@ class Simulation(object):
         self.stateSamples = {}
         
         self.stateSamples[self.STATE_COUNT_FIELD_NAME] = []
-        self.stateSamples[self.STATE_INFLUX_FIELD_NAME] = []
 
         # Get database cursor
         db_cur = self._dbConnection.cursor()
@@ -461,11 +441,8 @@ class Simulation(object):
 
             self.stateSamples[k].append(countDict)
 
-        # Transition counts should be saved.
-        self.nodeRuleTransCnt = [(0.0,{})]
 
         logger.info("Initial node state count vector: {0}".format(self.stateSamples[self.STATE_COUNT_FIELD_NAME]))
-        logger.info("Initial node state influx vector: {0}".format(self.stateSamples[self.STATE_INFLUX_FIELD_NAME]))
 
         readNetwork = self.network
         logger.info("Process will leave topology constant?: {0}".format(self.process.constantTopology))
@@ -478,7 +455,6 @@ class Simulation(object):
 
         for it in range(self.iterations):
             # Add a node transition count array for this iteration (update timestamp and copy data array).
-            self.nodeRuleTransCnt.append((self.nodeRuleTransCnt[-1][0] + self.dt, {}))
             # Update nodes.
             if self.process.constantTopology == False or self.process.runNodeUpdate == True:
                 # Go over all nodes.
@@ -537,12 +513,6 @@ class Simulation(object):
                                        readNetwork.graph[self.TIME_FIELD_NAME],
                                         it, n[0]))
 
-                        # Update influx
-                        writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
-                        # Update node rule trigger count.
-                        self.nodeRuleTransCnt[-1][1].setdefault(oldstate, {})
-                        self.nodeRuleTransCnt[-1][1][oldstate].setdefault(newstate, 0)
-                        self.nodeRuleTransCnt[-1][1][oldstate][newstate] += 1
 
             # Update edges.
             if self.process.constantTopology == False or self.process.runEdgeUpdate == True:
@@ -559,8 +529,6 @@ class Simulation(object):
                         # Update count
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][newstate] += 1
                         writeNetwork.graph[self.STATE_COUNT_FIELD_NAME][oldstate] -= 1
-                        # Update influx
-                        writeNetwork.graph[self.STATE_INFLUX_FIELD_NAME][newstate] += 1
         
       
             if self.process.constantTopology == False or self.process.runNetworkUpdate == True:
@@ -722,9 +690,6 @@ class Simulation(object):
         if self.network.graph.has_key(self.STATE_COUNT_FIELD_NAME) == False:
             # Create a dictionary for the state counts.
             self.network.graph[self.STATE_COUNT_FIELD_NAME] = OrderedDict()
-        if self.network.graph.has_key(self.STATE_INFLUX_FIELD_NAME) == False:
-            # Create a dictionary for the state influx.
-            self.network.graph[self.STATE_INFLUX_FIELD_NAME] = OrderedDict()
 
         logger.info("Created '{0}' network with {1} nodes." \
                        .format(nwork_name, len(self.network)))
@@ -781,22 +746,12 @@ class Simulation(object):
                             self.CFG_PARAM_save_state_count_interval, 
                             default=1)
 
-        self.saveStatesInterval[self.STATE_INFLUX_FIELD_NAME] = \
-            settings.getint(self.CFG_SECTION_OUTPT,
-                            self.CFG_PARAM_save_state_influx_interval, 
-                            default=1)
-
 
         self.saveStates = {}
 
         self.saveStates[self.STATE_COUNT_FIELD_NAME] = \
             settings.getboolean(self.CFG_SECTION_OUTPT,
                                 self.CFG_PARAM_save_state_count,
-                                default=True)
-
-        self.saveStates[self.STATE_INFLUX_FIELD_NAME] = \
-            settings.getboolean(self.CFG_SECTION_OUTPT,
-                                self.CFG_PARAM_save_state_influx,
                                 default=True)
 
 
@@ -886,33 +841,6 @@ class Simulation(object):
                         except IOError:
                             logger.error("Could not open file '{0}' for writing!"\
                                              .format(stateDataFName))
-
-        if self.saveNodeRuleTransitionCount == True:
-            nodeRTFName = os.path.join(self.outputDir,self.baseFileName+"_nodeTrans.csv")
-            logger.info("Saving Node Transition Counts to file {0}".format(nodeRTFName))
-            try:
-                with open(nodeRTFName, 'wb') as nodeRTFP:
-                    nodeRTDataWriter = csv.writer(nodeRTFP)
-                    # Compute state matrix dimensions and keys.
-                    globOldStates = set()
-                    globNewStates = set()
-                    for ts, nRTData in self.nodeRuleTransCnt:
-                        globOldStates.update(nRTData.keys())
-                        for oldState, tCounts in nRTData.iteritems():
-                            globNewStates.update(tCounts.keys())
-                    csvrw = [self.TIME_FIELD_NAME, "New (col) / Old (row)"]
-                    csvrw.extend(globNewStates)
-#                    logger.debug(csvrw)
-                    nodeRTDataWriter.writerow(csvrw)
-                    # Go through the data again in the order given by the sets and save a full matrix.
-                    for ts, nRTData in self.nodeRuleTransCnt:
-                        # Update state matrix
-                        for oldState in globOldStates:
-                            rw = [ts,oldState]
-                            rw.extend([ nRTData.get(oldState,{}).get(newState,0) for newState in globNewStates ])
-                            nodeRTDataWriter.writerow(rw)
-            except IOError:
-                logger.error("Could not open or write to file '{0}'!".format(nodeRTFName))
                 
         if self.save_config == True:
             if self.settings == None:
