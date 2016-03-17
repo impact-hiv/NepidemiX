@@ -541,13 +541,13 @@ class Simulation(object):
             
             if self.process.constantTopology == False:
                 writeNetwork.clear()
-            # Always update the graph for each sub dictionary.
-            for k in self.stateSamples:
+            # Always update the graph data
+            for k in readNetwork.graph:
                 writeNetwork.graph[k] = copy.deepcopy(readNetwork.graph[k])
                 # Check if we should save node state this iteration.
                 # it +1 is checked as the 0th is always saved before the loop.
                 # Also always save the last result.
-                if  self.saveStates[k] and \
+                if  k in self.stateSamples and self.saveStates[k] and \
                         ((self.saveStatesInterval[k] >0 and (it+1)%(self.saveStatesInterval[k]) == 0)\
                              or (it == self.iterations -1 )):
                     # Add the mean field states.
