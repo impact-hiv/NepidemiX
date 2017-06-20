@@ -694,9 +694,10 @@ class Simulation(object):
         logger.info("Created '{0}' network with {1} nodes." \
                        .format(nwork_name, len(self.network)))
         # Save the average clustering to info section
-        self.settings.set(self.CFG_SECTION_INFO, 
-                          self.CFG_PARAM_avgclust,
-                          networkx.average_clustering(self.network))
+        if not self.network.is_directed():
+            self.settings.set(self.CFG_SECTION_INFO, 
+                              self.CFG_PARAM_avgclust,
+                              networkx.average_clustering(self.network))
         # And the average degree
         self.settings.set(self.CFG_SECTION_INFO,
                           self.CFG_PARAM_avgdegree,

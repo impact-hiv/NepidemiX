@@ -122,7 +122,7 @@ grid_2d_graph_networkx = NetworkGenerator(nx.grid_2d_graph,
                                           {'m':int, 'n':int}).create
 
 fast_gnp_random_graph_networkx = NetworkGenerator(nx.fast_gnp_random_graph,
-                                                  {'n':int, 'p':float}).create
+                                                  {'n':int, 'p':float, 'directed':bool}).create
 
 load_network = NetworkGenerator(nwxutils.loadNetwork, {'file':str}).create
 
