@@ -894,17 +894,14 @@ class Simulation(object):
 
 
     def _setupDatabase(self, db_name):
+        self._dbConnection = None
+        self._db_sim_id = None
         try:
             # Try to get the sqlite3 package
             import sqlite3
-            try:
-                logger.info("Connecting to database '{0}'".format(db_name))
-                self._dbConnection = sqlite3.connect(db_name)
-                cur = self._dbConnection.cursor()
-            except sqlite3.OperationalError as sqlerr:
-                logger.error("Could not open connection to database '{0}'.\n"\
-                             .format(db_name) + "Sqlite3 Error message: '{0}'."\
-                             .format(sqlerr))
+            logger.info("Connecting to database '{0}'".format(db_name))
+            self._dbConnection = sqlite3.connect(db_name)
+            cur = self._dbConnection.cursor()
             # Check if the tables do not exist, create them.
             tbls = sorted([n[0] for n in cur.execute("SELECT name from sqlite_master")])
             if not all([d in tbls for d in [sqlite3io.SIMULATION_TABLE_NAME, 
@@ -987,11 +984,13 @@ class Simulation(object):
                             [hash(self.process.deduceNodeState(nc))]+
                             [nc[1][k] for k in ncks])
             self._dbConnection.commit()
+        except sqlite3.OperationalError as sqlerr:
+            logger.error("Could not open connection to database '{0}'.\n"\
+                         .format(db_name) + "Sqlite3 Error message: '{0}'."\
+                         .format(sqlerr)+ "\n Will not proceed with database output.")
         except ImportError:
             # No sqlite 3 found
             logger.error("sqlite3 package not found. No database logging supported.")
-            self._dbConnection = None
-            self._db_sim_id = None
 
                                                        
 def _import_and_execute(name, modules, parameters):
