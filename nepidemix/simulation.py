@@ -26,7 +26,6 @@ import networkx
 import copy
 import os
 from collections import OrderedDict
-import sqlite3
 import pickle
 
 # Local imports
@@ -425,8 +424,8 @@ class Simulation(object):
         
         self.stateSamples[self.STATE_COUNT_FIELD_NAME] = []
 
-        # Get database cursor
-        db_cur = self._dbConnection.cursor()
+        # Get database cursor if there is a connection.
+        db_cur = self._dbConnection.cursor() if self._dbConnection != None else None
     
         # Add entry for time 0.
         for k in self.stateSamples:
@@ -484,34 +483,34 @@ class Simulation(object):
                         # Check if we have a description of the destination stat
                         # (the source state should be there per definition)
                         # If not, insert it.
-                        
-                        ncks = nc[1].keys()
-                        db_cur.execute("""INSERT OR IGNORE INTO {0}({1}, {2}) VALUES ({3})"""\
-                        .format(sqlite3io.NODE_STATE_TABLE_NAME,
-                                sqlite3io.NODE_STATE_TABLE_ID_COL,
-                                ",".join(ncks),
-                                ",".join(["?"]*(1+len(nc[1])))),
-                        [hash(newstate)]+
-                        [nc[1][k] for k in ncks])
-                        db_cur.execute("""INSERT INTO {0}({1}, {2},
-                                           {3}, {4}, 
-                                           {5}, 
-                                           {6},
-                                           {7})
-                                          VALUES (?, ?, ?, ?, ?, ?, ?)"""\
-                                       .format(sqlite3io.NODE_EVENT_TABLE_NAME,
-                                               sqlite3io.NODE_EVENT_TABLE_SRC_STATE_COL,
-                                               sqlite3io.NODE_EVENT_TABLE_DST_STATE_COL,
-                                               sqlite3io.NODE_EVENT_TABLE_NODE_ID_COL,
-                                               sqlite3io.NODE_EVENT_TABLE_SIM_ID_COL,
-                                               sqlite3io.NODE_EVENT_TABLE_SIM_TIME_COL,
-                                               sqlite3io.NODE_EVENT_TABLE_MAJOR_IT_COL,
-                                               sqlite3io.NODE_EVENT_TABLE_MINOR_IT_COL,
-                                       ),
-                                       (hash(oldstate), hash(newstate),
-                                       n[0], self._db_sim_id,
-                                       readNetwork.graph[self.TIME_FIELD_NAME],
-                                        it, n[0]))
+                        if db_cur != None:
+                            ncks = nc[1].keys()
+                            db_cur.execute("""INSERT OR IGNORE INTO {0}({1}, {2}) VALUES ({3})"""\
+                            .format(sqlite3io.NODE_STATE_TABLE_NAME,
+                                    sqlite3io.NODE_STATE_TABLE_ID_COL,
+                                    ",".join(ncks),
+                                    ",".join(["?"]*(1+len(nc[1])))),
+                            [hash(newstate)]+
+                            [nc[1][k] for k in ncks])
+                            db_cur.execute("""INSERT INTO {0}({1}, {2},
+                                               {3}, {4}, 
+                                               {5}, 
+                                               {6},
+                                               {7})
+                                              VALUES (?, ?, ?, ?, ?, ?, ?)"""\
+                                           .format(sqlite3io.NODE_EVENT_TABLE_NAME,
+                                                   sqlite3io.NODE_EVENT_TABLE_SRC_STATE_COL,
+                                                   sqlite3io.NODE_EVENT_TABLE_DST_STATE_COL,
+                                                   sqlite3io.NODE_EVENT_TABLE_NODE_ID_COL,
+                                                   sqlite3io.NODE_EVENT_TABLE_SIM_ID_COL,
+                                                   sqlite3io.NODE_EVENT_TABLE_SIM_TIME_COL,
+                                                   sqlite3io.NODE_EVENT_TABLE_MAJOR_IT_COL,
+                                                   sqlite3io.NODE_EVENT_TABLE_MINOR_IT_COL,
+                                           ),
+                                           (hash(oldstate), hash(newstate),
+                                           n[0], self._db_sim_id,
+                                           readNetwork.graph[self.TIME_FIELD_NAME],
+                                            it, n[0]))
 
 
             # Update edges.
@@ -580,7 +579,8 @@ class Simulation(object):
         if self.printProgress:
             sys.stdout.write("[100%]\n")
         # Commit changes to database
-        self._dbConnection.commit()
+        if self._dbConnection != None:
+            self._dbConnection.commit()
         logger.info("Simulation done.")
         endTime = time.time()
         logger.info("Total execution time: {0} s.".format(endTime-startTime))
@@ -895,95 +895,103 @@ class Simulation(object):
 
     def _setupDatabase(self, db_name):
         try:
-            logger.info("Connecting to database '{0}'".format(db_name))
-            self._dbConnection = sqlite3.connect(db_name)
-            cur = self._dbConnection.cursor()
-        except sqlite3.OperationalError as sqlerr:
-            logger.error("Could not open connection to database '{0}'.\n"\
-                         .format(db_name) + "Sqlite3 Error message: '{0}'."\
-                         .format(sqlerr))
-        # Check if the tables do not exist, create them.
-        tbls = sorted([n[0] for n in cur.execute("SELECT name from sqlite_master")])
-        if not all([d in tbls for d in [sqlite3io.SIMULATION_TABLE_NAME, 
-                                       sqlite3io.NODE_EVENT_TABLE_NAME,
-                                       sqlite3io.NODE_STATE_TABLE_NAME]]):
-            cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
-                                           {2} TEXT,
-                                           {3} BLOB,
-                                           {4} BLOB,
-                                           {5} INTEGER,
-                                           {6} INTEGER,
-                                           {7} DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
+            # Try to get the sqlite3 package
+            import sqlite3
+            try:
+                logger.info("Connecting to database '{0}'".format(db_name))
+                self._dbConnection = sqlite3.connect(db_name)
+                cur = self._dbConnection.cursor()
+            except sqlite3.OperationalError as sqlerr:
+                logger.error("Could not open connection to database '{0}'.\n"\
+                             .format(db_name) + "Sqlite3 Error message: '{0}'."\
+                             .format(sqlerr))
+            # Check if the tables do not exist, create them.
+            tbls = sorted([n[0] for n in cur.execute("SELECT name from sqlite_master")])
+            if not all([d in tbls for d in [sqlite3io.SIMULATION_TABLE_NAME, 
+                                           sqlite3io.NODE_EVENT_TABLE_NAME,
+                                           sqlite3io.NODE_STATE_TABLE_NAME]]):
+                cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
+                                               {2} TEXT,
+                                               {3} BLOB,
+                                               {4} BLOB,
+                                               {5} INTEGER,
+                                               {6} INTEGER,
+                                               {7} DATETIME DEFAULT CURRENT_TIMESTAMP)"""\
+                            .format(sqlite3io.SIMULATION_TABLE_NAME,
+                                    sqlite3io.SIMULATION_TABLE_SIM_ID_COL,
+                                    sqlite3io.SIMULATION_TABLE_NPX_V_COL,
+                                    sqlite3io.SIMULATION_TABLE_GRAPH_COL,
+                                    sqlite3io.SIMULATION_TABLE_CONF_COL,
+                                    sqlite3io.SIMULATION_TABLE_NUM_NODES_COL,
+                                    sqlite3io.SIMULATION_TABLE_NUM_EDGES_COL,
+                                    sqlite3io.SIMULATION_TABLE_TIME_COL,
+                            ))
+
+                cur.execute("""CREATE TABLE {0} ({1} INTEGER, {2} INTEGER,
+                                               {3} INTEGER, {4} INTEGER, 
+                                               {5} FLOAT, 
+                                               {6} INTEGER,
+                                               {7} INTEGER,
+                                               PRIMARY KEY ({4}, 
+                                                            {6}, 
+                                                            {7}))"""\
+                            .format(sqlite3io.NODE_EVENT_TABLE_NAME,
+                                    sqlite3io.NODE_EVENT_TABLE_SRC_STATE_COL,
+                                    sqlite3io.NODE_EVENT_TABLE_DST_STATE_COL,
+                                    sqlite3io.NODE_EVENT_TABLE_NODE_ID_COL,
+                                    sqlite3io.NODE_EVENT_TABLE_SIM_ID_COL,
+                                    sqlite3io.NODE_EVENT_TABLE_SIM_TIME_COL,
+                                    sqlite3io.NODE_EVENT_TABLE_MAJOR_IT_COL,
+                                    sqlite3io.NODE_EVENT_TABLE_MINOR_IT_COL,))
+                # Now create the table describing the node attributes
+                # Deduce them first. As the state dictionary should be the same for
+                # all nodes use the first one.
+                key_types = ["{0} {1}".format(k, {str:"TEXT",
+                                                  int:"INTEGER",
+                                                  float:"REAL"}.get(type(v),"BLOB")
+                                              )\
+                             for k,v in self.network.node[0].iteritems()]
+
+                cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
+                                                 {2})"""\
+                            .format(sqlite3io.NODE_STATE_TABLE_NAME,
+                                    sqlite3io.NODE_STATE_TABLE_ID_COL,
+                                    ",".join(key_types)))
+            # Create a simulation entry
+            cur.execute("""INSERT INTO {0} ({1}, {2}, {3}, {4}, {5}) VALUES (?,?,?,?,?)"""\
                         .format(sqlite3io.SIMULATION_TABLE_NAME,
-                                sqlite3io.SIMULATION_TABLE_SIM_ID_COL,
                                 sqlite3io.SIMULATION_TABLE_NPX_V_COL,
                                 sqlite3io.SIMULATION_TABLE_GRAPH_COL,
-                                sqlite3io.SIMULATION_TABLE_CONF_COL,
                                 sqlite3io.SIMULATION_TABLE_NUM_NODES_COL,
                                 sqlite3io.SIMULATION_TABLE_NUM_EDGES_COL,
-                                sqlite3io.SIMULATION_TABLE_TIME_COL,
+                                sqlite3io.SIMULATION_TABLE_CONF_COL,
+                        ),
+                        (full_version,
+                         sqlite3.Binary(pickle.dumps(self.network, protocol=-1)),
+                         self.network.number_of_nodes(),
+                         self.network.number_of_edges(),
+                         sqlite3.Binary(pickle.dumps(self.settings, protocol=-1)),
                         ))
-     
-            cur.execute("""CREATE TABLE {0} ({1} INTEGER, {2} INTEGER,
-                                           {3} INTEGER, {4} INTEGER, 
-                                           {5} FLOAT, 
-                                           {6} INTEGER,
-                                           {7} INTEGER,
-                                           PRIMARY KEY ({4}, 
-                                                        {6}, 
-                                                        {7}))"""\
-                        .format(sqlite3io.NODE_EVENT_TABLE_NAME,
-                                sqlite3io.NODE_EVENT_TABLE_SRC_STATE_COL,
-                                sqlite3io.NODE_EVENT_TABLE_DST_STATE_COL,
-                                sqlite3io.NODE_EVENT_TABLE_NODE_ID_COL,
-                                sqlite3io.NODE_EVENT_TABLE_SIM_ID_COL,
-                                sqlite3io.NODE_EVENT_TABLE_SIM_TIME_COL,
-                                sqlite3io.NODE_EVENT_TABLE_MAJOR_IT_COL,
-                                sqlite3io.NODE_EVENT_TABLE_MINOR_IT_COL,))
-            # Now create the table describing the node attributes
-            # Deduce them first. As the state dictionary should be the same for
-            # all nodes use the first one.
-            key_types = ["{0} {1}".format(k, {str:"TEXT",
-                                              int:"INTEGER",
-                                              float:"REAL"}.get(type(v),"BLOB")
-                                          )\
-                         for k,v in self.network.node[0].iteritems()]
-            
-            cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
-                                             {2})"""\
-                        .format(sqlite3io.NODE_STATE_TABLE_NAME,
-                                sqlite3io.NODE_STATE_TABLE_ID_COL,
-                                ",".join(key_types)))
-        # Create a simulation entry
-        cur.execute("""INSERT INTO {0} ({1}, {2}, {3}, {4}, {5}) VALUES (?,?,?,?,?)"""\
-                    .format(sqlite3io.SIMULATION_TABLE_NAME,
-                            sqlite3io.SIMULATION_TABLE_NPX_V_COL,
-                            sqlite3io.SIMULATION_TABLE_GRAPH_COL,
-                            sqlite3io.SIMULATION_TABLE_NUM_NODES_COL,
-                            sqlite3io.SIMULATION_TABLE_NUM_EDGES_COL,
-                            sqlite3io.SIMULATION_TABLE_CONF_COL,
-                    ),
-                    (full_version,
-                     sqlite3.Binary(pickle.dumps(self.network, protocol=-1)),
-                     self.network.number_of_nodes(),
-                     self.network.number_of_edges(),
-                     sqlite3.Binary(pickle.dumps(self.settings, protocol=-1)),
-                    ))
-        self._dbConnection.commit()
-        # Get and set the simulation ID.
-        self._db_sim_id = cur.lastrowid
-        logger.debug("_db_sim_id = {0}".format(self._db_sim_id))
-        # Now populate the state database with the initial graph states
-        for nc in self.network.nodes_iter(data=True):
-            ncks = nc[1].keys()
-            cur.execute("""INSERT OR IGNORE INTO {0}({1}, {2}) VALUES ({3})"""\
-                        .format(sqlite3io.NODE_STATE_TABLE_NAME,
-                                sqlite3io.NODE_STATE_TABLE_ID_COL,
-                                ",".join(ncks),
-                                ",".join(["?"]*(1+len(nc[1])))),
-                        [hash(self.process.deduceNodeState(nc))]+
-                        [nc[1][k] for k in ncks])
-        self._dbConnection.commit()
+            self._dbConnection.commit()
+            # Get and set the simulation ID.
+            self._db_sim_id = cur.lastrowid
+            logger.debug("_db_sim_id = {0}".format(self._db_sim_id))
+            # Now populate the state database with the initial graph states
+            for nc in self.network.nodes_iter(data=True):
+                ncks = nc[1].keys()
+                cur.execute("""INSERT OR IGNORE INTO {0}({1}, {2}) VALUES ({3})"""\
+                            .format(sqlite3io.NODE_STATE_TABLE_NAME,
+                                    sqlite3io.NODE_STATE_TABLE_ID_COL,
+                                    ",".join(ncks),
+                                    ",".join(["?"]*(1+len(nc[1])))),
+                            [hash(self.process.deduceNodeState(nc))]+
+                            [nc[1][k] for k in ncks])
+            self._dbConnection.commit()
+        except ImportError:
+            # No sqlite 3 found
+            logger.error("sqlite3 package not found. No database logging supported.")
+            self._dbConnection = None
+            self._db_sim_id = None
 
                                                        
 def _import_and_execute(name, modules, parameters):
