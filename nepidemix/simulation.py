@@ -947,7 +947,7 @@ class Simulation(object):
                                                   int:"INTEGER",
                                                   float:"REAL"}.get(type(v),"BLOB")
                                               )\
-                             for k,v in self.network.node[0].iteritems()]
+                             for k,v in self.network.nodes(data=True)[0][1].iteritems()]
 
                 cur.execute("""CREATE TABLE {0} ({1} INTEGER PRIMARY KEY,
                                                  {2})"""\
