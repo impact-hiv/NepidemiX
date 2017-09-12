@@ -32,7 +32,7 @@ packagename = 'nepidemix'
 distname = 'NepidemiX'
 
 # Basic version
-version = '0.2'
+version = '0.2.1'
 
 is_released = False
 
