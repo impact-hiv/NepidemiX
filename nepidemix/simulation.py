@@ -787,6 +787,11 @@ class Simulation(object):
                                               self.CFG_PARAM_save_network_format,
                                               default = 'gpickle')
 
+        # Inserting a warning here in case the format is GraphML as saving in this
+        # format was defunct and has been removed.
+        if self.saveNetworkFormat == 'GraphML':
+            logger.warning("Saving in GraphML no longer supported. Simulation will run, but no graph data will be saved!")
+        
         self.saveNetworkFormatCompress = \
             settings.getboolean(self.CFG_SECTION_OUTPT,
                                 self.CFG_PARAM_save_network_compress_file,
@@ -883,9 +888,6 @@ class Simulation(object):
 
         if self.saveNetworkFormat == 'gpickle':
             networkx.readwrite.gpickle.write_gpickle(self.network, 
-                                                     sveBaseName)
-        elif self.saveNetworkFormat == 'GraphML':  
-            networkx.readwrite.graphml.write_graphml(self.network, 
                                                      sveBaseName)
         else:
             logger.error("Unknown file format {0}".format(\
